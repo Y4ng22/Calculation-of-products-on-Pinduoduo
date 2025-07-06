@@ -1,18 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import NotFound from '../views/404.vue' // 导入404组件
+import HelloWorld from '@/components/HelloWorld.vue'
+const NotFound = () => import('@/views/404.vue')
+const CallApi = () => import('@/views/CallApi.vue')
 
 const routes = [
-    // 你的其他路由...
     {
-        path: '/home',
-        name: 'home',
-        component: () => import('../views/HomeView.vue')
+        path: '/',
+        name: 'Home',
+        component: HelloWorld
     },
-
-    // 添加404路由 - 必须放在最后
     {
-        path: '/:pathMatch(.*)*', // 匹配所有路径
-        name: 'not-found',
+        path: '/call-api',
+        name: 'CallApi',
+        component: CallApi
+    },
+    {
+        path: '/:catchAll(.*)',
+        name: 'NotFound',
         component: NotFound
     }
 ]

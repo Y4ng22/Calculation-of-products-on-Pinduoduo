@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
   servlet:
     context-path: /
 
@@ -9,6 +9,9 @@ spring:
     username: root
     password: Gepoint
     driver-class-name: com.mysql.cj.jdbc.Driver
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
   jpa:
     hibernate:
@@ -18,3 +21,4 @@ spring:
 
   thymeleaf:
     cache: false
+
