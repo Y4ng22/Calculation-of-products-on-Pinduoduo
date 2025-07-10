@@ -1,12 +1,14 @@
 <template>
   <div id="app">
-    <nav>
-      <router-link to="/">首页</router-link>
-      |
-      <router-link to="/random">不存在的页面</router-link>
+    <nav class="app-nav">
+      <div class="nav-container">
+        <router-link to="/" class="nav-link">首页</router-link>
+        <router-link to="/call-api" class="nav-link">API调用</router-link>
+        <router-link to="/APIRequest" class="nav-link">拼多多开发平台</router-link>
+      </div>
     </nav>
 
-    <router-view /> <!-- 显示路由页面 -->
+    <router-view />
   </div>
 </template>
 
@@ -16,20 +18,55 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f7fa;
+}
+
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  padding: 20px;
-  text-align: center;
+  min-height: 100vh;
 }
 
-nav {
-  margin-bottom: 20px;
+.app-nav {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-a {
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 30px;
+}
+
+.nav-link {
   text-decoration: none;
-  color: #42b983;
-  margin: 0 10px;
+  color: #606266;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.nav-link.router-link-active {
+  color: #409eff;
+  background-color: #ecf5ff;
 }
 </style>

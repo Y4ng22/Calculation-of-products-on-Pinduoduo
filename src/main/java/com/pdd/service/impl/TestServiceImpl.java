@@ -28,9 +28,9 @@ public class TestServiceImpl implements TestService {
 
     private static final String TYPE = "pdd.ddk.goods.search";
     private static final String DATA_TYPE = "JSON";
-    private static final String CLIENT_ID = "42543f5de30b4f60a276a58c062ad105";
-    private static final String CLIENT_SECRET = "2588f5de4f6efb160428c2d46a0fc032be1f79b0";
-    private static final String ACCESS_TOKEN = "你的access_token";
+    private static final String CLIENT_ID = "3ddfe0aefe9c4b80b1412a491ac9030a";
+    private static final String CLIENT_SECRET = "0d96bd19ac714b7494e02d23b24ac05efad0be62";
+    private static final String ACCESS_TOKEN = "3de26ee5830f4ac39387aebb47cea6f8c75d0f1a";
     private static final String PDD_API_URL = "https://gw-api.pinduoduo.com/api/router";
 
     /**
