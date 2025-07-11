@@ -1,6 +1,5 @@
 <template>
   <div class="bg-gray-100 min-h-screen">
-    <HeaderNav />
     <main class="container mx-auto px-4 py-8 space-y-6">
       <!-- 选择接口卡片 -->
       <div class="bg-white rounded-lg shadow p-6">
@@ -147,10 +146,8 @@
 </template>
 
 <script>
-import HeaderNav from '@/components/HeaderNav.vue'
 export default {
   name: 'CallApi',
-  components: { HeaderNav },
   data() {
     return {
       requestUrl: 'https://api.pinduoduo.com/v1/goods/detail',
