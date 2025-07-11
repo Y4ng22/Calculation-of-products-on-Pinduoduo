@@ -76,108 +76,114 @@
       </el-form-item>
       
       <el-form-item label="请求参数">
-        <div class="params-container">
-          <div 
-            v-for="(param, index) in formData.params" 
-            :key="index" 
-            class="param-item"
-          >
-            <el-row :gutter="10">
-              <el-col :span="8">
-                <el-input 
-                  v-model="param.key" 
-                  placeholder="参数名"
-                  size="small"
-                />
-              </el-col>
-              <el-col :span="8">
-                <el-input 
-                  v-model="param.value" 
-                  placeholder="参数值"
-                  size="small"
-                />
-              </el-col>
-              <el-col :span="4">
-                <el-select 
-                  v-model="param.type" 
-                  placeholder="类型"
-                  size="small"
-                  style="width: 100%"
-                >
-                  <el-option label="String" value="string" />
-                  <el-option label="Number" value="number" />
-                  <el-option label="Boolean" value="boolean" />
-                </el-select>
-              </el-col>
-              <el-col :span="4">
-                <el-button 
-                  type="danger" 
-                  size="small" 
-                  @click="removeParam(index)"
-                  :icon="Delete"
-                >
-                  删除
-                </el-button>
-              </el-col>
-            </el-row>
+        <div :class="['params-container', { 'has-data': formData.params.length > 0 }]">
+          <div class="params-flex-row">
+            <div class="params-list">
+              <div 
+                v-for="(param, index) in formData.params" 
+                :key="index" 
+                class="param-item"
+              >
+                <el-row :gutter="10">
+                  <el-col :span="8">
+                    <el-input 
+                      v-model="param.key" 
+                      placeholder="参数名"
+                      size="small"
+                    />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input 
+                      v-model="param.value" 
+                      placeholder="参数值"
+                      size="small"
+                    />
+                  </el-col>
+                  <el-col :span="4">
+                    <el-select 
+                      v-model="param.type" 
+                      placeholder="类型"
+                      size="small"
+                      style="width: 100%"
+                    >
+                      <el-option label="String" value="string" />
+                      <el-option label="Number" value="number" />
+                      <el-option label="Boolean" value="boolean" />
+                    </el-select>
+                  </el-col>
+                  <el-col :span="4">
+                    <el-button 
+                      type="danger" 
+                      size="small" 
+                      @click="removeParam(index)"
+                      :icon="Delete"
+                    >
+                      删除
+                    </el-button>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="addParam"
+              :icon="Plus"
+              class="add-param-btn"
+            >
+              添加参数
+            </el-button>
           </div>
-          
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click="addParam"
-            :icon="Plus"
-            style="margin-top: 10px"
-          >
-            添加参数
-          </el-button>
         </div>
       </el-form-item>
       
       <el-form-item label="请求头">
-        <div class="headers-container">
-          <div 
-            v-for="(header, index) in formData.headers" 
-            :key="index" 
-            class="header-item"
-          >
-            <el-row :gutter="10">
-              <el-col :span="10">
-                <el-input 
-                  v-model="header.key" 
-                  placeholder="Header名"
-                  size="small"
-                />
-              </el-col>
-              <el-col :span="10">
-                <el-input 
-                  v-model="header.value" 
-                  placeholder="Header值"
-                  size="small"
-                />
-              </el-col>
-              <el-col :span="4">
-                <el-button 
-                  type="danger" 
-                  size="small" 
-                  @click="removeHeader(index)"
-                  :icon="Delete"
-                >
-                  删除
-                </el-button>
-              </el-col>
-            </el-row>
+        <div :class="['headers-container', { 'has-data': formData.headers.length > 0 }]">
+          <div class="headers-flex-row">
+            <div class="headers-list">
+              <div 
+                v-for="(header, index) in formData.headers" 
+                :key="index" 
+                class="header-item"
+              >
+                <el-row :gutter="10">
+                  <el-col :span="10">
+                    <el-input 
+                      v-model="header.key" 
+                      placeholder="Header名"
+                      size="small"
+                    />
+                  </el-col>
+                  <el-col :span="10">
+                    <el-input 
+                      v-model="header.value" 
+                      placeholder="Header值"
+                      size="small"
+                    />
+                  </el-col>
+                  <el-col :span="4">
+                    <el-button 
+                      type="danger" 
+                      size="small" 
+                      @click="removeHeader(index)"
+                      :icon="Delete"
+                    >
+                      删除
+                    </el-button>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="addHeader"
+              :icon="Plus"
+              class="add-header-btn"
+            >
+              添加Header
+            </el-button>
           </div>
-          
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click="addHeader"
-            :icon="Plus"
-            style="margin-top: 10px"
-          >
-            添加Header
-          </el-button>
         </div>
       </el-form-item>
       
@@ -479,6 +485,12 @@ export default {
 
 .params-container,
 .headers-container {
+  border: none;
+  background: none;
+  padding: 0;
+}
+.params-container.has-data,
+.headers-container.has-data {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   padding: 15px;
@@ -493,5 +505,22 @@ export default {
 .param-item:last-child,
 .header-item:last-child {
   margin-bottom: 0;
+}
+
+.params-flex-row,
+.headers-flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+.params-list,
+.headers-list {
+  flex: 1;
+}
+.add-param-btn,
+.add-header-btn {
+  margin-left: 16px;
+  margin-top: 0;
+  align-self: flex-start;
 }
 </style> 

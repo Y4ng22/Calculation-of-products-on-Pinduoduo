@@ -72,6 +72,14 @@
                 >
                   下载Excel模板
                 </el-button>
+                <el-button
+                  type="primary"
+                  :icon="Document"
+                  @click="excelHistoryVisible = true"
+                  size="large"
+                >
+                  查看历史记录
+                </el-button>
               </div>
               <div v-if="excelFileName" class="excel-upload-info">
                 <el-tag type="success" :icon="Upload">
@@ -270,7 +278,7 @@
                 <!-- 商品列表 -->
                 <div class="products-content">
                   <el-table 
-                    :data="products" 
+                    :data="pagedProducts" 
                     style="width: 100%"
                     v-loading="productsLoading"
                     empty-text="暂无商品数据"
@@ -330,6 +338,18 @@
                       </template>
                     </el-table-column>
                   </el-table>
+                  <div style="margin: 20px 0; text-align: right;" v-if="products.length > 0">
+                    <el-pagination
+                      background
+                      layout="total, sizes, prev, pager, next, jumper"
+                      :total="products.length"
+                      :page-size="pageSize"
+                      :current-page="currentPage"
+                      @size-change="val => { pageSize = val; currentPage = 1; }"
+                      @current-change="val => { currentPage = val; }"
+                      :page-sizes="[5, 10, 20, 50]"
+                    />
+                  </div>
                 </div>
                 
                 <!-- 计算滚动成本区域 -->
@@ -478,6 +498,80 @@
       </div>
     </el-dialog>
 
+    <!-- Excel上传历史记录弹窗 -->
+    <el-dialog
+      v-model="excelHistoryVisible"
+      title="Excel上传历史记录"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="uploadedFiles.length === 0" style="text-align:center; color:#999; padding:40px 0;">
+        暂无上传历史
+      </div>
+      <div v-else>
+        <div class="uploaded-files-list">
+          <div 
+            v-for="(file, index) in uploadedFiles" 
+            :key="index"
+            class="uploaded-file-item"
+            :class="{ 'success': file.status === 'success', 'error': file.status === 'error' }"
+          >
+            <div class="file-info">
+              <div class="file-name">
+                <el-icon class="file-icon">
+                  <Document v-if="file.status === 'success'" />
+                  <Box v-else />
+                </el-icon>
+                <span class="name">{{ file.name }}</span>
+                <el-tag 
+                  :type="file.status === 'success' ? 'success' : 'danger'" 
+                  size="small"
+                  style="margin-left: 8px"
+                >
+                  {{ file.status === 'success' ? '成功' : '失败' }}
+                </el-tag>
+              </div>
+              <div class="file-details">
+                <span class="upload-time">
+                  <el-icon><Clock /></el-icon>
+                  {{ formatTime(file.uploadTime) }}
+                </span>
+                <span class="file-size">
+                  <el-icon><Files /></el-icon>
+                  {{ formatFileSize(file.size) }}
+                </span>
+                <span v-if="file.status === 'success'" class="product-count">
+                  <el-icon><Shop /></el-icon>
+                  {{ file.productCount }} 条商品
+                </span>
+                <span v-if="file.status === 'error'" class="error-message">
+                  <el-icon><Warning /></el-icon>
+                  {{ file.errorMessage }}
+                </span>
+              </div>
+            </div>
+            <div class="file-actions">
+              <el-button 
+                v-if="file.status === 'success'"
+                type="primary" 
+                size="small" 
+                @click="viewFileProducts(file)"
+              >
+                查看商品
+              </el-button>
+              <el-button 
+                type="danger" 
+                size="small" 
+                @click="removeFileHistory(index)"
+              >
+                删除记录
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -537,7 +631,10 @@ export default {
       // Excel上传相关
       excelUploading: false,
       excelFileName: '',
-      uploadedFiles: [] // 存储已上传的文件信息
+      uploadedFiles: [], // 存储已上传的文件信息
+      // 商品分页相关
+      currentPage: 1,
+      pageSize: 5
     }
   },
   computed: {
@@ -594,6 +691,12 @@ export default {
     
     processingCount() {
       return this.products.filter(p => p.status === 'pending' || p.status === 'processing').length
+    },
+
+    pagedProducts() {
+      const start = (this.currentPage - 1) * this.pageSize
+      const end = start + this.pageSize
+      return this.products.slice(start, end)
     }
   },
   methods: {
@@ -657,6 +760,7 @@ export default {
         this.apiResponse = res.data
         this.error = null
         this.$message.success('请求成功')
+        this.resetPagination()
         
       } catch (err) {
         console.log('请求错误详情:', err)
@@ -714,6 +818,7 @@ export default {
       this.products = []
       this.excelFileName = ''
       this.uploadedFiles = []
+      this.resetPagination()
     },
     
     retryRequest() {
@@ -1109,6 +1214,7 @@ export default {
       
       // 清除错误状态
       this.error = null
+      this.resetPagination()
     },
     
     // 下载Excel模板
@@ -1117,11 +1223,15 @@ export default {
         // 创建示例数据
         const templateData = [
           ['商品ID', '商品名称', '进货价', '卖出价', '分类', '状态', '图片链接', '描述'],
-          ['P001', '立白洗衣液去渍', 80, 98, '生活用品', 'active', 'https://tse4-mm.cn.bing.net/th/id/OIP-C.45TxzesOc67PKw-3ihJriAHaHa?w=208&h=208&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3', '最新款iPhone'],
-          ['P002', '立白亮白护色洗衣液', 50, 88, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '轻薄笔记本'],
-          ['P003', '立白大师香氛洗衣液', 60, 188, '生活用品', 'on_sale', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.QhePUmkasB5ggpZzzQYj7wHaNU?w=115&h=206&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '无线降噪耳机'],
-          ['P004', '立白除菌除螨洗衣液*4', 188, 288, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '轻薄平板'],
-          ['P005', '立白超洁薰衣草', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '智能手表']
+          ['P001', '立白洗衣液去渍', 80, 98, '生活用品', 'active', 'https://tse4-mm.cn.bing.net/th/id/OIP-C.45TxzesOc67PKw-3ihJriAHaHa?w=208&h=208&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3', '洗衣液'],
+          ['P002', '立白亮白护色洗衣液', 50, 88, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
+          ['P003', '立白大师香氛洗衣液', 60, 188, '生活用品', 'on_sale', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.QhePUmkasB5ggpZzzQYj7wHaNU?w=115&h=206&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
+          ['P004', '立白除菌除螨洗衣液*4', 188, 288, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '洗衣液'],
+          ['P005', '立白超洁薰衣草', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P006', '立白超洁薰衣草1', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P007', '立白超洁薰衣草2', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P008', '立白超洁薰衣草3', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P009', '立白超洁薰衣草4', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液']
         ]
         
         // 创建工作簿
@@ -1165,29 +1275,10 @@ export default {
     
     // 格式化时间
     formatTime(date) {
-      const now = new Date()
-      const diff = now - date
-      const minutes = Math.floor(diff / 60000)
-      const hours = Math.floor(diff / 3600000)
-      const days = Math.floor(diff / 86400000)
-      
-      if (minutes < 1) {
-        return '刚刚'
-      } else if (minutes < 60) {
-        return `${minutes}分钟前`
-      } else if (hours < 24) {
-        return `${hours}小时前`
-      } else if (days < 7) {
-        return `${days}天前`
-      } else {
-        return date.toLocaleDateString('zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }
+      // 兼容 date 可能是字符串
+      const d = typeof date === 'string' ? new Date(date) : date
+      const pad = n => n < 10 ? '0' + n : n
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
     
     // 格式化文件大小
@@ -1209,6 +1300,11 @@ export default {
     removeFileHistory(index) {
       this.uploadedFiles.splice(index, 1)
       this.$message.success('记录已删除')
+    },
+
+    // 在导入Excel、API请求等数据变动后，重置分页到第一页
+    resetPagination() {
+      this.currentPage = 1
     }
   }
 }
