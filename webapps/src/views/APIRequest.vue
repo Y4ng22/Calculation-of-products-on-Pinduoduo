@@ -206,6 +206,14 @@
                       <el-tag type="info" size="small" style="margin-left: 5px">
                         数据量: {{ apiResponse.data?.length || 0 }} 条
                       </el-tag>
+                      <el-tag 
+                        v-if="apiResponse.databaseStatus" 
+                        :type="apiResponse.databaseStatus === 'success' ? 'success' : 'danger'" 
+                        size="small" 
+                        style="margin-left: 5px"
+                      >
+                        {{ apiResponse.databaseStatus === 'success' ? '已写入数据库' : '数据库写入失败' }}
+                      </el-tag>
                     </div>
                   </template>
                   
@@ -407,6 +415,16 @@
                         size="large"
                       >
                         导出利润报告
+                      </el-button>
+                      <el-button 
+                        type="success"
+                        @click="writeToDatabase"
+                        :loading="writingToDatabase"
+                        :disabled="!apiResponse"
+                        :icon="Document"
+                        size="large"
+                      >
+                        写入数据库
                       </el-button>
                     </div>
                     
@@ -628,6 +646,8 @@ export default {
       calculationResultTitle: '',
       calculationResultType: 'info',
       calculationResultDescription: '',
+      // 数据库写入相关
+      writingToDatabase: false,
       // Excel上传相关
       excelUploading: false,
       excelFileName: '',
@@ -1305,6 +1325,65 @@ export default {
     // 在导入Excel、API请求等数据变动后，重置分页到第一页
     resetPagination() {
       this.currentPage = 1
+    },
+
+    // 写入数据库方法
+    async writeToDatabase() {
+      if (!this.apiResponse) {
+        this.$message.warning('暂无数据，无法写入数据库')
+        return
+      }
+
+      this.writingToDatabase = true
+      try {
+        // 构建发送到后端的数据
+        const requestData = {
+          data: this.apiResponse,
+          products: this.products,
+          totalCount: this.products.length,
+          dataSource: this.dataSource,
+          writeTime: new Date().toISOString()
+        }
+
+        // 发送到后端接口
+        const response = await axios.post('http://localhost:8089/api/database/write', requestData, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.data.code === 1) {
+          this.$message.success('数据已成功写入数据库')
+          console.log('数据库写入响应:', response.data)
+          
+          // 更新API响应状态
+          this.apiResponse = {
+            ...this.apiResponse,
+            databaseStatus: 'success',
+            writeTime: new Date().toISOString()
+          }
+        } else {
+          this.$message.error('写入失败: ' + response.data.msg)
+          this.apiResponse = {
+            ...this.apiResponse,
+            databaseStatus: 'error',
+            error: response.data.msg
+          }
+        }
+
+      } catch (error) {
+        console.error('写入数据库失败:', error)
+        this.$message.error('写入数据库失败: ' + (error.response?.data?.msg || error.message))
+        
+        // 更新API响应状态
+        this.apiResponse = {
+          ...this.apiResponse,
+          databaseStatus: 'error',
+          error: error.response?.data?.msg || error.message
+        }
+      } finally {
+        this.writingToDatabase = false
+      }
     }
   }
 }
