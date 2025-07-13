@@ -31,11 +31,26 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
         try {
             List<TransactionRecord> records = new ArrayList<>();
             
+            // 获取当前数据库中的记录总数，用于生成自增ID
+            long currentMaxId = getCurrentMaxId();
+            long nextId = currentMaxId + 1;
+            System.out.println("开始生成自动ID，当前记录总数: " + currentMaxId + ", 下一个ID将从: " + nextId + " 开始");
+            
             for (Map<String, Object> product : products) {
                 TransactionRecord record = new TransactionRecord();
                 
-                // 映射字段
-                record.setId((String) product.get("id"));
+                // 处理商品ID字段 - 优先使用 good_id，如果没有则使用 id，如果都没有则自动生成
+                String goodId = (String) product.get("good_id");
+                if (goodId == null || goodId.trim().isEmpty()) {
+                    goodId = (String) product.get("id");
+                }
+                if (goodId == null || goodId.trim().isEmpty()) {
+                    // 自动生成商品ID，格式为 "AUTO_" + 自增序号
+                    goodId = "AUTO_" + String.format("%06d", nextId);
+                    System.out.println("自动生成商品ID: " + goodId + " (商品名称: " + product.get("name") + ")");
+                    nextId++;
+                }
+                record.setGoodId(goodId);
                 record.setName((String) product.get("name"));
                 
                 // 处理cost字段（可能是cost或purchasePrice）
@@ -110,8 +125,13 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
     }
 
     @Override
-    public TransactionRecord findById(String id) {
+    public TransactionRecord findById(Long id) {
         return transactionRecordRepository.findById(id);
+    }
+
+    @Override
+    public TransactionRecord findByGoodId(String goodId) {
+        return transactionRecordRepository.findByGoodId(goodId);
     }
 
     @Override
@@ -209,4 +229,194 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
             throw new RuntimeException("获取表数据总数失败: " + e.getMessage(), e);
         }
     }
+    
+    /**
+     * 获取当前数据库中最大的ID值，用于生成自增ID
+     */
+    private long getCurrentMaxId() {
+        try {
+            // 使用COUNT(*)返回的数字+1作为起始计数
+            String sql = "SELECT COUNT(*) as total_count FROM transacation_record_test";
+            Map<String, Object> result = jdbcTemplate.queryForMap(sql);
+            long totalCount = ((Number) result.get("total_count")).longValue();
+            
+            // 添加调试日志
+            System.out.println("数据库总记录数: " + totalCount + ", 下一个自动生成ID将从: " + (totalCount + 1) + " 开始");
+            
+            return totalCount; // 返回当前总数，这样nextId = totalCount + 1
+        } catch (Exception e) {
+            // 如果查询失败，返回0作为起始值
+            System.out.println("获取记录总数失败，使用默认值0: " + e.getMessage());
+            return 0;
+        }
+    }
+    
+    @Override
+    public void disableAutoIncrement() {
+        try {
+            String sql = "ALTER TABLE transacation_record_test MODIFY COLUMN id INT NOT NULL";
+            jdbcTemplate.execute(sql);
+            System.out.println("主键自动递增已关闭");
+        } catch (Exception e) {
+            System.err.println("关闭主键自动递增失败: " + e.getMessage());
+            throw new RuntimeException("关闭主键自动递增失败", e);
+        }
+    }
+    
+    @Override
+    public void enableAutoIncrement() {
+        try {
+            String sql = "ALTER TABLE transacation_record_test MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT";
+            jdbcTemplate.execute(sql);
+            System.out.println("主键自动递增已开启");
+        } catch (Exception e) {
+            System.err.println("开启主键自动递增失败: " + e.getMessage());
+            throw new RuntimeException("开启主键自动递增失败", e);
+        }
+    }
+    
+    @Override
+    public Map<String, Object> addTableRecord(String tableName, Map<String, Object> recordData) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 构建INSERT SQL
+            StringBuilder columns = new StringBuilder();
+            StringBuilder values = new StringBuilder();
+            List<Object> params = new ArrayList<>();
+            
+            for (Map.Entry<String, Object> entry : recordData.entrySet()) {
+                if (entry.getValue() != null && !entry.getValue().toString().trim().isEmpty()) {
+                    if (columns.length() > 0) {
+                        columns.append(", ");
+                        values.append(", ");
+                    }
+                    columns.append(entry.getKey());
+                    values.append("?");
+                    params.add(entry.getValue());
+                }
+            }
+            
+            String sql = "INSERT INTO " + tableName + " (" + columns.toString() + ") VALUES (" + values.toString() + ")";
+            
+            // 执行插入
+            int affectedRows = jdbcTemplate.update(sql, params.toArray());
+            
+            if (affectedRows > 0) {
+                // 获取插入后的记录
+                String selectSql = "SELECT * FROM " + tableName + " WHERE id = LAST_INSERT_ID()";
+                Map<String, Object> insertedRecord = jdbcTemplate.queryForMap(selectSql);
+                
+                result.put("success", true);
+                result.put("message", "记录新增成功");
+                result.put("affectedRows", affectedRows);
+                result.put("data", insertedRecord);
+            } else {
+                result.put("success", false);
+                result.put("message", "新增记录失败");
+            }
+            
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "新增记录失败: " + e.getMessage());
+            throw new RuntimeException("新增表记录失败", e);
+        }
+        
+        return result;
+    }
+    
+    @Override
+    public Map<String, Object> updateTableRecord(String tableName, Map<String, Object> recordData) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 获取主键ID
+            Object id = recordData.get("id");
+            if (id == null) {
+                result.put("success", false);
+                result.put("message", "缺少主键ID");
+                return result;
+            }
+            
+            // 构建UPDATE SQL
+            StringBuilder setClause = new StringBuilder();
+            List<Object> params = new ArrayList<>();
+            
+            for (Map.Entry<String, Object> entry : recordData.entrySet()) {
+                if (!"id".equals(entry.getKey()) && entry.getValue() != null) {
+                    if (setClause.length() > 0) {
+                        setClause.append(", ");
+                    }
+                    setClause.append(entry.getKey()).append(" = ?");
+                    params.add(entry.getValue());
+                }
+            }
+            
+            // 添加WHERE条件
+            params.add(id);
+            String sql = "UPDATE " + tableName + " SET " + setClause.toString() + " WHERE id = ?";
+            
+            // 执行更新
+            int affectedRows = jdbcTemplate.update(sql, params.toArray());
+            
+            if (affectedRows > 0) {
+                // 获取更新后的记录
+                String selectSql = "SELECT * FROM " + tableName + " WHERE id = ?";
+                Map<String, Object> updatedRecord = jdbcTemplate.queryForMap(selectSql, id);
+                
+                result.put("success", true);
+                result.put("message", "记录更新成功");
+                result.put("affectedRows", affectedRows);
+                result.put("data", updatedRecord);
+            } else {
+                result.put("success", false);
+                result.put("message", "更新记录失败，可能记录不存在");
+            }
+            
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "更新记录失败: " + e.getMessage());
+            throw new RuntimeException("更新表记录失败", e);
+        }
+        
+        return result;
+    }
+    
+    @Override
+    public Map<String, Object> deleteTableRecord(String tableName, Map<String, Object> recordData) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 获取主键ID
+            Object id = recordData.get("id");
+            if (id == null) {
+                result.put("success", false);
+                result.put("message", "缺少主键ID");
+                return result;
+            }
+            
+            // 构建DELETE SQL
+            String sql = "DELETE FROM " + tableName + " WHERE id = ?";
+            
+            // 执行删除
+            int affectedRows = jdbcTemplate.update(sql, id);
+            
+            if (affectedRows > 0) {
+                result.put("success", true);
+                result.put("message", "记录删除成功");
+                result.put("affectedRows", affectedRows);
+            } else {
+                result.put("success", false);
+                result.put("message", "删除记录失败，可能记录不存在");
+            }
+            
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "删除记录失败: " + e.getMessage());
+            throw new RuntimeException("删除表记录失败", e);
+        }
+        
+        return result;
+    }
+
 } 

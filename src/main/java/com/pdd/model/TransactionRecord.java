@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 
 public class TransactionRecord {
     
-    private String id;
+    private Long id; // 自增主键
+    
+    private String goodId; // 商品ID
     
     private String name;
     
@@ -25,9 +27,23 @@ public class TransactionRecord {
     // 构造函数
     public TransactionRecord() {}
     
-    public TransactionRecord(String id, String name, BigDecimal cost, BigDecimal price, 
+    public TransactionRecord(String goodId, String name, BigDecimal cost, BigDecimal price, 
+                           String category, String state, String image, String description, Integer sales) {
+        this.goodId = goodId;
+        this.name = name;
+        this.cost = cost;
+        this.price = price;
+        this.category = category;
+        this.state = state;
+        this.image = image;
+        this.description = description;
+        this.sales = sales;
+    }
+    
+    public TransactionRecord(Long id, String goodId, String name, BigDecimal cost, BigDecimal price, 
                            String category, String state, String image, String description, Integer sales) {
         this.id = id;
+        this.goodId = goodId;
         this.name = name;
         this.cost = cost;
         this.price = price;
@@ -39,12 +55,20 @@ public class TransactionRecord {
     }
     
     // Getter和Setter方法
-    public String getId() {
+    public Long getId() {
         return id;
     }
     
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
+    }
+    
+    public String getGoodId() {
+        return goodId;
+    }
+    
+    public void setGoodId(String goodId) {
+        this.goodId = goodId;
     }
     
     public String getName() {
@@ -114,7 +138,8 @@ public class TransactionRecord {
     @Override
     public String toString() {
         return "TransactionRecord{" +
-                "id='" + id + '\'' +
+                "id=" + id +
+                ", goodId='" + goodId + '\'' +
                 ", name='" + name + '\'' +
                 ", cost=" + cost +
                 ", price=" + price +

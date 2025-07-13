@@ -93,6 +93,10 @@
               <div v-for="product in products" :key="product.id" class="flex items-start space-x-4 bg-white p-4 rounded-lg">
                 <img :src="product.image" class="w-32 h-32 object-cover rounded-lg" :alt="product.name">
                 <div class="flex-1 space-y-2">
+                  <div class="flex items-center space-x-4 mb-2">
+                    <span class="text-sm text-gray-500">ID: {{ product.id }}</span>
+                    <span v-if="product.goodId" class="text-sm text-gray-500">商品ID: {{ product.goodId }}</span>
+                  </div>
                   <h3 class="text-lg font-medium">{{ product.name }}</h3>
                   <p class="text-gray-500">{{ product.description }}</p>
                   <div class="flex items-center space-x-4">

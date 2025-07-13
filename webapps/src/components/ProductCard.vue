@@ -16,6 +16,10 @@
     </div>
     
     <div class="product-info">
+      <div class="product-header">
+        <span class="product-id">ID: {{ product.id || '-' }}</span>
+        <span v-if="product.goodId" class="good-id">商品ID: {{ product.goodId }}</span>
+      </div>
       <h3 class="product-name">{{ product.name }}</h3>
       
       <div class="price-info">
@@ -108,6 +112,23 @@ export default {
 
 .product-info {
   padding: 0 8px;
+}
+
+.product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.product-id {
+  font-weight: 500;
+}
+
+.good-id {
+  font-weight: 500;
 }
 
 .product-name {

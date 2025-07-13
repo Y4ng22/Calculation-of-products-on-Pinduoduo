@@ -12,9 +12,14 @@ public interface TransactionRecordService {
     Map<String, Object> batchSaveRecords(List<Map<String, Object>> products);
     
     /**
-     * 根据ID查询记录
+     * 根据主键ID查询记录
      */
-    TransactionRecord findById(String id);
+    TransactionRecord findById(Long id);
+    
+    /**
+     * 根据商品ID查询记录
+     */
+    TransactionRecord findByGoodId(String goodId);
     
     /**
      * 查询所有记录
@@ -50,4 +55,29 @@ public interface TransactionRecordService {
      * 获取表数据总数
      */
     long getTableCount(String tableName);
+    
+    /**
+     * 关闭主键自动递增
+     */
+    void disableAutoIncrement();
+    
+    /**
+     * 开启主键自动递增
+     */
+    void enableAutoIncrement();
+    
+    /**
+     * 新增表记录
+     */
+    Map<String, Object> addTableRecord(String tableName, Map<String, Object> recordData);
+    
+    /**
+     * 更新表记录
+     */
+    Map<String, Object> updateTableRecord(String tableName, Map<String, Object> recordData);
+    
+    /**
+     * 删除表记录
+     */
+    Map<String, Object> deleteTableRecord(String tableName, Map<String, Object> recordData);
 } 

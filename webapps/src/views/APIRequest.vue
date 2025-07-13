@@ -291,7 +291,7 @@
                     v-loading="productsLoading"
                     empty-text="暂无商品数据"
                   >
-                    <el-table-column prop="id" label="商品ID" width="120" />
+                    <el-table-column prop="goodId" label="商品ID" width="120" />
                     <el-table-column prop="name" label="商品名称" min-width="200" />
                     <el-table-column prop="image" label="商品图片" width="120">
                       <template #default="{ row }">
@@ -495,9 +495,9 @@
             </div>
           </el-col>
           <el-col :span="12">
-            <h3>{{ selectedProduct.name || '商品名称' }}</h3>
-            <div class="detail-info">
-              <p><strong>商品ID:</strong> {{ selectedProduct.id || '-' }}</p>
+                          <h3>{{ selectedProduct.name || '商品名称' }}</h3>
+              <div class="detail-info">
+                <p><strong>商品ID:</strong> {{ selectedProduct.goodId || '-' }}</p>
               <p><strong>进货价:</strong> 
                 <span v-if="selectedProduct.cost" class="cost-price">¥{{ selectedProduct.cost }}</span>
                 <span v-else>-</span>
@@ -687,8 +687,18 @@ export default {
     formattedJson() {
       if (!this.apiResponse) return ''
       try {
-        // 直接显示API响应，不做任何包装
-        return JSON.stringify(this.apiResponse, null, 2)
+        // 处理API响应数据，确保 good_id 字段名正确，并将其放在第一位
+        const processedResponse = JSON.parse(JSON.stringify(this.apiResponse))
+        if (processedResponse.data && Array.isArray(processedResponse.data)) {
+          processedResponse.data = processedResponse.data.map(item => {
+            const { goodId, ...rest } = item // 解构，移除 goodId
+            return {
+              good_id: goodId || item.good_id, // 将 good_id 放在第一位
+              ...rest
+            }
+          })
+        }
+        return JSON.stringify(processedResponse, null, 2)
       } catch (error) {
         return 'JSON格式化失败'
       }
@@ -805,6 +815,18 @@ export default {
         }
 
         const res = await axios(config)
+        
+        // 处理API响应数据，将 goodId 转换为 good_id，并确保 good_id 放在第一位
+        if (res.data && res.data.data && Array.isArray(res.data.data)) {
+          res.data.data = res.data.data.map(item => {
+            const { goodId, ...rest } = item // 解构，移除 goodId
+            return {
+              good_id: goodId || item.good_id, // 将 good_id 放在第一位
+              ...rest
+            }
+          })
+        }
+        
         this.apiResponse = res.data
         this.error = null
         this.showCalculationResult = false
@@ -1033,8 +1055,10 @@ export default {
             const unitProfit = price - cost
             const totalProfit = unitProfit * sales
             
+            const { goodId, ...rest } = product // 解构，移除 goodId
             return {
-              id: product.id,
+              good_id: goodId, // 将商品ID放在第一位
+              id: product.id, // 保留自增序号
               name: product.name,
               cost: cost,
               price: price,
@@ -1219,7 +1243,9 @@ export default {
               case 'id':
               case '商品id':
               case '商品编号':
-                product.id = value
+              case 'good_id':
+              case 'goodid':
+                product.goodId = value
                 break
               case 'name':
               case '商品名称':
@@ -1278,7 +1304,8 @@ export default {
         })
         
         // 如果商品有基本信息，则添加到商品列表
-        if (product.id || product.name) {
+        // 即使没有商品ID，只要有商品名称也可以添加（后端会自动生成ID）
+        if (product.name && product.name.trim() !== '') {
           this.products.push(product)
         }
       })
@@ -1291,7 +1318,13 @@ export default {
       // 模拟API响应格式，以便与现有逻辑兼容
       this.apiResponse = {
         status: 200,
-        data: this.products,
+        data: this.products.map(product => {
+          const { goodId, ...rest } = product // 解构，移除 goodId
+          return {
+            good_id: goodId, // 将 good_id 放在第一位
+            ...rest
+          }
+        }),
         message: 'Excel数据导入成功',
         total: this.products.length
       }
@@ -1306,15 +1339,15 @@ export default {
       try {
         // 创建示例数据
         const templateData = [
-          ['商品ID', '商品名称', '进货价', '卖出价', '销量', '分类', '状态', '图片链接', '描述'],
+          ['商品ID(可选)', '商品名称', '进货价', '卖出价', '销量', '分类', '状态', '图片链接', '描述'],
           ['P001', '立白洗衣液去渍', 80, 98, 150, '生活用品', 'active', 'https://tse4-mm.cn.bing.net/th/id/OIP-C.45TxzesOc67PKw-3ihJriAHaHa?w=208&h=208&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3', '洗衣液'],
-          ['P002', '立白亮白护色洗衣液', 50, 88, 89, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
+          ['', '立白亮白护色洗衣液', 50, 88, 89, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
           ['P003', '立白大师香氛洗衣液', 60, 188, 234, '生活用品', 'on_sale', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.QhePUmkasB5ggpZzzQYj7wHaNU?w=115&h=206&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
-          ['P004', '立白除菌除螨洗衣液*4', 188, 288, 67, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '洗衣液'],
+          ['', '立白除菌除螨洗衣液*4', 188, 288, 67, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '洗衣液'],
           ['P005', '立白超洁薰衣草', 68, 79, 156, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P006', '立白超洁薰衣草1', 68, 79, 89, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['', '立白超洁薰衣草1', 68, 79, 89, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
           ['P007', '立白超洁薰衣草2', 68, 79, 234, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P008', '立白超洁薰衣草3', 68, 79, 445, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['', '立白超洁薰衣草3', 68, 79, 445, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
           ['P009', '立白超洁薰衣草4', 68, 79, 178, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液']
         ]
         
@@ -1391,6 +1424,8 @@ export default {
       this.currentPage = 1
     },
 
+
+
     // 写入数据库方法
     async writeToDatabase() {
       if (!this.apiResponse) {
@@ -1403,7 +1438,20 @@ export default {
         // 构建发送到后端的数据
         const requestData = {
           data: this.apiResponse,
-          products: this.products,
+          products: this.products.map(product => {
+            const { goodId, ...rest } = product // 解构，移除 goodId
+            const productData = {
+              ...rest
+            }
+            
+            // 只有当 goodId 存在且不为空时才添加 good_id 字段
+            // 如果 goodId 为空或不存在，后端会自动生成
+            if (goodId && goodId.toString().trim() !== '') {
+              productData.good_id = goodId
+            }
+            
+            return productData
+          }),
           totalCount: this.products.length,
           dataSource: this.dataSource,
           writeTime: new Date().toISOString()

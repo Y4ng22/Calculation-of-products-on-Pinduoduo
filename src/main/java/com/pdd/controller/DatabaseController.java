@@ -37,6 +37,12 @@ public class DatabaseController {
                 return Result.error("没有商品数据可写入");
             }
             
+            // 先关闭主键自动递增
+            transactionRecordService.disableAutoIncrement();
+            
+            // 重新开启主键自动递增
+            transactionRecordService.enableAutoIncrement();
+            
             // 调用Service批量保存
             Map<String, Object> result = transactionRecordService.batchSaveRecords(products);
             
@@ -68,6 +74,7 @@ public class DatabaseController {
                 .map(record -> {
                     Map<String, Object> recordMap = new HashMap<>();
                     recordMap.put("id", record.getId());
+                    recordMap.put("goodId", record.getGoodId());
                     recordMap.put("name", record.getName());
                     recordMap.put("cost", record.getCost());
                     recordMap.put("price", record.getPrice());
@@ -100,6 +107,7 @@ public class DatabaseController {
                 .map(record -> {
                     Map<String, Object> recordMap = new HashMap<>();
                     recordMap.put("id", record.getId());
+                    recordMap.put("goodId", record.getGoodId());
                     recordMap.put("name", record.getName());
                     recordMap.put("cost", record.getCost());
                     recordMap.put("price", record.getPrice());
@@ -133,6 +141,7 @@ public class DatabaseController {
                 .map(record -> {
                     Map<String, Object> recordMap = new HashMap<>();
                     recordMap.put("id", record.getId());
+                    recordMap.put("goodId", record.getGoodId());
                     recordMap.put("name", record.getName());
                     recordMap.put("cost", record.getCost());
                     recordMap.put("price", record.getPrice());
@@ -331,4 +340,79 @@ public class DatabaseController {
             return Result.error("获取表数据总数失败: " + e.getMessage());
         }
     }
+    
+    /**
+     * 新增表记录
+     */
+    @PostMapping("/table/{tableName}/add")
+    public Result addTableRecord(@PathVariable String tableName, @RequestBody Map<String, Object> recordData) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            Map<String, Object> result = transactionRecordService.addTableRecord(tableName, recordData);
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("新增记录失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新表记录
+     */
+    @PostMapping("/table/{tableName}/update")
+    public Result updateTableRecord(@PathVariable String tableName, @RequestBody Map<String, Object> recordData) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            Map<String, Object> result = transactionRecordService.updateTableRecord(tableName, recordData);
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("更新记录失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 删除表记录
+     */
+    @PostMapping("/table/{tableName}/delete")
+    public Result deleteTableRecord(@PathVariable String tableName, @RequestBody Map<String, Object> recordData) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            Map<String, Object> result = transactionRecordService.deleteTableRecord(tableName, recordData);
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("删除记录失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 关闭主键自动递增
+     */
+    @PostMapping("/auto-increment/disable")
+    public Result disableAutoIncrement() {
+        apiCallCount++; // 增加API调用次数
+        try {
+            transactionRecordService.disableAutoIncrement();
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("message", "主键自动递增已关闭");
+            return Result.success(responseData);
+        } catch (Exception e) {
+            return Result.error("关闭主键自动递增失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 开启主键自动递增
+     */
+    @PostMapping("/auto-increment/enable")
+    public Result enableAutoIncrement() {
+        apiCallCount++; // 增加API调用次数
+        try {
+            transactionRecordService.enableAutoIncrement();
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("message", "主键自动递增已开启");
+            return Result.success(responseData);
+        } catch (Exception e) {
+            return Result.error("开启主键自动递增失败: " + e.getMessage());
+        }
+    }
+
 } 

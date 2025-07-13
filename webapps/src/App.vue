@@ -6,6 +6,7 @@
         <router-link to="/call-api" class="nav-link">API调用</router-link>
         <router-link to="/APIRequest" class="nav-link">拼多多开发平台</router-link>
         <router-link to="/metadata" class="nav-link">元数据管理</router-link>
+        <router-link to="/products" class="nav-link">商品展示</router-link>
       </div>
     </nav>
 

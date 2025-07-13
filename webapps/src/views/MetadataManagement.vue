@@ -226,6 +226,22 @@
               </div>
             </div>
             
+            <!-- 操作按钮 -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <button @click="addNewRow" 
+                        class="px-4 py-2 bg-green-500 text-white rounded-button hover:bg-green-600 flex items-center space-x-2">
+                  <i class="fas fa-plus"></i>
+                  <span>新增记录</span>
+                </button>
+                <button @click="refreshTableData" 
+                        class="px-4 py-2 bg-blue-500 text-white rounded-button hover:bg-blue-600 flex items-center space-x-2">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>刷新</span>
+                </button>
+              </div>
+            </div>
+            
             <!-- 分页控制 -->
             <div class="flex items-center justify-between mb-4">
               <div class="flex items-center space-x-2">
@@ -262,6 +278,9 @@
                         class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border-b border-gray-200">
                       {{ column }}
                     </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border-b border-gray-200">
+                      操作
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -270,6 +289,20 @@
                         class="px-4 py-2 text-sm text-gray-900 border-b border-gray-100">
                       <div class="max-w-xs truncate" :title="row[column]">
                         {{ row[column] || '-' }}
+                      </div>
+                    </td>
+                    <td class="px-4 py-2 text-sm border-b border-gray-100">
+                      <div class="flex items-center space-x-2">
+                        <button @click="editRow(row, index)" 
+                                class="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                                title="编辑">
+                          <i class="fas fa-edit text-sm"></i>
+                        </button>
+                        <button @click="deleteRow(row, index)" 
+                                class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                                title="删除">
+                          <i class="fas fa-trash text-sm"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -288,6 +321,83 @@
               <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
               <span class="ml-2 text-gray-600">加载中...</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 编辑记录模态框 -->
+      <div v-if="showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900">编辑记录</h3>
+              <button @click="closeEditModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <form @submit.prevent="saveEditRow" class="space-y-4">
+              <div v-for="column in tableColumns" :key="column" class="grid grid-cols-1 gap-2">
+                <label :for="column" class="text-sm font-medium text-gray-700">{{ column }}</label>
+                <input 
+                  :id="column"
+                  v-model="editingRowData[column]"
+                  type="text"
+                  class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  :readonly="column === 'id' && isPrimaryKey(column)"
+                />
+              </div>
+              
+              <div class="flex items-center justify-end space-x-3 pt-4">
+                <button type="button" @click="closeEditModal" 
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                  取消
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                  保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增记录模态框 -->
+      <div v-if="showAddModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900">新增记录</h3>
+              <button @click="closeAddModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <form @submit.prevent="saveNewRow" class="space-y-4">
+              <div v-for="column in tableColumns" :key="column" class="grid grid-cols-1 gap-2">
+                <label :for="'new-' + column" class="text-sm font-medium text-gray-700">{{ column }}</label>
+                <input 
+                  :id="'new-' + column"
+                  v-model="newRowData[column]"
+                  type="text"
+                  class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  :required="isRequired(column)"
+                  :placeholder="getColumnPlaceholder(column)"
+                />
+              </div>
+              
+              <div class="flex items-center justify-end space-x-3 pt-4">
+                <button type="button" @click="closeAddModal" 
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                  取消
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                  新增
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -317,7 +427,15 @@ export default {
       dataLoading: false,
       // 连接测试相关
       connectionStatus: null,
-      connectionMessage: ''
+      connectionMessage: '',
+      // 编辑相关
+      showEditModal: false,
+      editingRow: null,
+      editingIndex: null,
+      editingRowData: {},
+      // 新增相关
+      showAddModal: false,
+      newRowData: {}
     }
   },
   computed: {
@@ -541,6 +659,201 @@ export default {
       
       this.connectionStatus = 'success'
       this.connectionMessage = '元数据导出成功'
+    },
+
+    editRow(row, index) {
+      this.editingRow = row;
+      this.editingIndex = index;
+      this.editingRowData = { ...row }; // 复制当前行数据到编辑数据
+      this.showEditModal = true;
+    },
+
+    closeEditModal() {
+      this.showEditModal = false;
+      this.editingRow = null;
+      this.editingIndex = null;
+      this.editingRowData = {};
+    },
+
+    async saveEditRow() {
+      if (!this.editingRow) return;
+
+      this.dataLoading = true;
+      try {
+        const response = await fetch(`/api/database/table/${this.selectedTableData.tableName}/update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: this.editingRow.id, // 假设id是主键
+            ...this.editingRowData
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.code === 1) {
+          this.tableData[this.editingIndex] = { ...this.editingRow, ...this.editingRowData }; // 更新列表中的数据
+          this.closeEditModal();
+          this.connectionStatus = 'success';
+          this.connectionMessage = `记录更新成功: ${this.selectedTableData.tableName}`;
+        } else {
+          this.connectionStatus = 'error';
+          this.connectionMessage = `更新失败: ${result.msg}`;
+        }
+      } catch (error) {
+        this.connectionStatus = 'error';
+        this.connectionMessage = `更新失败: ${error.message}`;
+        console.error('更新失败:', error);
+      } finally {
+        this.dataLoading = false;
+      }
+    },
+
+    deleteRow(row, index) {
+      // 模拟删除，实际需要发送删除请求
+      console.log('删除记录:', row, '索引:', index);
+      // 例如，可以发送一个删除请求到后端
+      // try {
+      //   const response = await fetch(`/api/database/table/${this.selectedTableData.tableName}/delete`, {
+      //     method: 'POST',
+      //     headers: {
+      //       'Content-Type': 'application/json'
+      //     },
+      //     body: JSON.stringify({ id: row.id }) // 假设id是主键
+      //   });
+      //   if (!response.ok) {
+      //     throw new Error(`HTTP error! status: ${response.status}`);
+      //   }
+      //   const result = await response.json();
+      //   if (result.code === 1) {
+      //     this.tableData.splice(index, 1);
+      //     this.totalPages = Math.ceil(this.tableData.length / this.pageSize);
+      //     this.currentPage = Math.min(this.currentPage, this.totalPages);
+      //     this.loadTableData(); // 重新加载数据
+      //     this.connectionStatus = 'success';
+      //     this.connectionMessage = `记录删除成功: ${this.selectedTableData.tableName}`;
+      //   } else {
+      //     this.connectionStatus = 'error';
+      //     this.connectionMessage = `删除失败: ${result.msg}`;
+      //   }
+      // } catch (error) {
+      //   this.connectionStatus = 'error';
+      //   this.connectionMessage = `删除失败: ${error.message}`;
+      //   console.error('删除失败:', error);
+      // } finally {
+      //   this.dataLoading = false;
+      // }
+      
+      // 确认删除
+      if (confirm(`确定要删除这条记录吗？\n${JSON.stringify(row, null, 2)}`)) {
+        this.performDelete(row, index);
+      }
+    },
+
+    async performDelete(row, index) {
+      this.dataLoading = true;
+      try {
+        const response = await fetch(`/api/database/table/${this.selectedTableData.tableName}/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id: row.id }) // 假设id是主键
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.code === 1) {
+          this.tableData.splice(index, 1);
+          this.totalPages = Math.ceil(this.tableData.length / this.pageSize);
+          this.currentPage = Math.min(this.currentPage, this.totalPages);
+          this.loadTableData(); // 重新加载数据
+          this.connectionStatus = 'success';
+          this.connectionMessage = `记录删除成功: ${this.selectedTableData.tableName}`;
+        } else {
+          this.connectionStatus = 'error';
+          this.connectionMessage = `删除失败: ${result.msg}`;
+        }
+      } catch (error) {
+        this.connectionStatus = 'error';
+        this.connectionMessage = `删除失败: ${error.message}`;
+        console.error('删除失败:', error);
+      } finally {
+        this.dataLoading = false;
+      }
+    },
+
+    refreshTableData() {
+      this.loadTableData();
+    },
+
+    addNewRow() {
+      this.newRowData = {}; // 清空新增数据
+      this.showAddModal = true;
+    },
+
+    closeAddModal() {
+      this.showAddModal = false;
+      this.newRowData = {};
+    },
+
+    async saveNewRow() {
+      if (!this.selectedTableData) return;
+
+      this.dataLoading = true;
+      try {
+        const response = await fetch(`/api/database/table/${this.selectedTableData.tableName}/add`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.newRowData)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.code === 1) {
+          this.tableData.push(result.data); // 添加到列表
+          this.totalPages = Math.ceil((this.tableData.length + 1) / this.pageSize); // 更新总页数
+          this.currentPage = Math.min(this.currentPage, this.totalPages); // 确保当前页不超过总页数
+          this.loadTableData(); // 重新加载数据
+          this.closeAddModal();
+          this.connectionStatus = 'success';
+          this.connectionMessage = `记录新增成功: ${this.selectedTableData.tableName}`;
+        } else {
+          this.connectionStatus = 'error';
+          this.connectionMessage = `新增失败: ${result.msg}`;
+        }
+      } catch (error) {
+        this.connectionStatus = 'error';
+        this.connectionMessage = `新增失败: ${error.message}`;
+        console.error('新增失败:', error);
+      } finally {
+        this.dataLoading = false;
+      }
+    },
+
+    isPrimaryKey(columnName) {
+      // 假设 'id' 是主键
+      return columnName === 'id';
+    },
+
+    isRequired(columnName) {
+      // 假设 'id' 是主键，且不允许为空
+      return columnName !== 'id';
+    },
+
+    getColumnPlaceholder(columnName) {
+      // 根据列名设置占位符
+      if (columnName === 'username') return '请输入用户名';
+      if (columnName === 'password') return '请输入密码';
+      if (columnName === 'email') return '请输入邮箱';
+      return '请输入值';
     }
   }
 }

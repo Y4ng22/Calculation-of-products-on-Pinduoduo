@@ -15,9 +15,14 @@ public interface TransactionRecordRepository {
     int batchInsert(@Param("records") List<TransactionRecord> records);
     
     /**
-     * 根据ID查询记录
+     * 根据主键ID查询记录
      */
-    TransactionRecord findById(@Param("id") String id);
+    TransactionRecord findById(@Param("id") Long id);
+    
+    /**
+     * 根据商品ID查询记录
+     */
+    TransactionRecord findByGoodId(@Param("goodId") String goodId);
     
     /**
      * 查询所有记录

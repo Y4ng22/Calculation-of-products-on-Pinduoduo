@@ -4,6 +4,7 @@ const NotFound = () => import('@/views/404.vue')
 const CallApi = () => import('@/views/CallApi.vue')
 const APIRequest = () => import('@/views/APIRequest.vue')
 const MetadataManagement = () => import('@/views/MetadataManagement.vue')
+const ProductDisplay = () => import('@/views/ProductDisplay.vue')
 
 const routes = [
     {
@@ -25,6 +26,11 @@ const routes = [
         path: '/metadata',
         name: 'MetadataManagement',
         component: MetadataManagement
+    },
+    {
+        path: '/products',
+        name: 'ProductDisplay',
+        component: ProductDisplay
     },
     {
         path: '/:catchAll(.*)',
