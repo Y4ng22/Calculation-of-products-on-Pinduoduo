@@ -782,6 +782,8 @@ export default {
         this.$message.success('请求成功')
         this.resetPagination()
         
+        // 记录API调用（这里可以调用后端接口记录，但为了简化，暂时不记录外部API调用）
+        
       } catch (err) {
         console.log('请求错误详情:', err)
         console.log('错误响应:', err.response)
@@ -946,6 +948,21 @@ export default {
         `
         
         this.showCalculationResult = true
+        
+        // 记录计算操作到后端
+        try {
+          await axios.post('http://localhost:8089/api/database/stats/calculation', {
+            productCount: this.products.length,
+            totalCost: this.totalCost,
+            totalRevenue: this.totalRevenue,
+            totalProfit: profit,
+            profitRate: profitRate,
+            calculationTime: new Date().toISOString()
+          })
+        } catch (error) {
+          console.log('记录计算操作失败:', error)
+          // 不影响主要功能，只记录日志
+        }
         
         // 显示成功消息
         if (profit >= 0) {
