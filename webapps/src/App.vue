@@ -5,6 +5,7 @@
         <router-link to="/" class="nav-link">首页</router-link>
         <router-link to="/call-api" class="nav-link">API调用</router-link>
         <router-link to="/APIRequest" class="nav-link">拼多多开发平台</router-link>
+        <router-link to="/metadata" class="nav-link">元数据管理</router-link>
       </div>
     </nav>
 
@@ -28,6 +29,11 @@ export default {
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: #f5f7fa;
+}
+
+:root {
+  --primary: #409eff;
+  --secondary: #67c23a;
 }
 
 #app {

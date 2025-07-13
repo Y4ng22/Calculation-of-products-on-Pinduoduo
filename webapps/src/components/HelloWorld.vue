@@ -100,16 +100,16 @@
             </div>
           </div>
 
-          <div class="feature-card">
+          <div class="feature-card" @click="navigateToMetadata">
             <div class="feature-icon">
               <el-icon><Setting /></el-icon>
             </div>
-            <h3>数据库管理</h3>
-            <p>支持数据持久化存储，安全可靠的数据管理和备份功能</p>
+            <h3>元数据管理</h3>
+            <p>支持数据表结构、字段、记录等元数据的可视化管理和导出</p>
             <div class="feature-tags">
-              <el-tag size="small" type="primary">数据存储</el-tag>
-              <el-tag size="small" type="success">安全可靠</el-tag>
-              <el-tag size="small" type="warning">备份恢复</el-tag>
+              <el-tag size="small" type="primary">表结构</el-tag>
+              <el-tag size="small" type="success">字段管理</el-tag>
+              <el-tag size="small" type="warning">元数据导出</el-tag>
             </div>
           </div>
 
@@ -336,7 +336,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; 2024 拼多多开发平台. 保留所有权利.</p>
+          <p>&copy; 2025 surf yangxinzhuo/modawei.</p>
         </div>
       </div>
     </div>
@@ -426,6 +426,10 @@ export default {
     navigateToExcel() {
       this.$router.push('/APIRequest')
       // 可以添加参数来直接跳转到Excel部分
+    },
+    
+    navigateToMetadata() {
+      this.$router.push('/metadata')
     },
     
     downloadTemplate() {

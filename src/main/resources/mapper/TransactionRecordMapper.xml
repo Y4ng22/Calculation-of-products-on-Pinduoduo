@@ -12,11 +12,12 @@
         <result column="state" property="state" jdbcType="VARCHAR"/>
         <result column="image" property="image" jdbcType="VARCHAR"/>
         <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="sales" property="sales" jdbcType="INTEGER"/>
     </resultMap>
 
     <!-- 批量插入 -->
     <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO transacation_record_test (id, name, cost, price, category, state, image, description)
+        INSERT INTO transacation_record_test (id, name, cost, price, category, state, image, description, sales)
         VALUES
         <foreach collection="records" item="record" separator=",">
             (
@@ -27,28 +28,29 @@
                 #{record.category},
                 #{record.state},
                 #{record.image},
-                #{record.description}
+                #{record.description},
+                #{record.sales}
             )
         </foreach>
     </insert>
 
     <!-- 根据ID查询 -->
     <select id="findById" resultMap="TransactionRecordResultMap">
-        SELECT id, name, cost, price, category, state, image, description
+        SELECT id, name, cost, price, category, state, image, description, sales
         FROM transacation_record_test
         WHERE id = #{id}
     </select>
 
     <!-- 查询所有 -->
     <select id="findAll" resultMap="TransactionRecordResultMap">
-        SELECT id, name, cost, price, category, state, image, description
+        SELECT id, name, cost, price, category, state, image, description, sales
         FROM transacation_record_test
         ORDER BY id
     </select>
 
     <!-- 根据分类查询 -->
     <select id="findByCategory" resultMap="TransactionRecordResultMap">
-        SELECT id, name, cost, price, category, state, image, description
+        SELECT id, name, cost, price, category, state, image, description, sales
         FROM transacation_record_test
         WHERE category = #{category}
         ORDER BY id
@@ -56,7 +58,7 @@
 
     <!-- 根据状态查询 -->
     <select id="findByState" resultMap="TransactionRecordResultMap">
-        SELECT id, name, cost, price, category, state, image, description
+        SELECT id, name, cost, price, category, state, image, description, sales
         FROM transacation_record_test
         WHERE state = #{state}
         ORDER BY id

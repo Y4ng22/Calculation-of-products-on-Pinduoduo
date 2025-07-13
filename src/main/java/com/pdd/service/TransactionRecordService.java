@@ -30,4 +30,24 @@ public interface TransactionRecordService {
      * 根据状态查询记录
      */
     List<TransactionRecord> findByState(String state);
+    
+    /**
+     * 获取数据库表信息
+     */
+    List<Map<String, Object>> getDatabaseTables();
+    
+    /**
+     * 测试数据库连接
+     */
+    List<Map<String, Object>> testConnection();
+    
+    /**
+     * 获取表数据
+     */
+    Map<String, Object> getTableData(String tableName, int page, int size);
+    
+    /**
+     * 获取表数据总数
+     */
+    long getTableCount(String tableName);
 } 

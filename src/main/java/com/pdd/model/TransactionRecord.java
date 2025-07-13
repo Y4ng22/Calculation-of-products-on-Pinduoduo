@@ -20,11 +20,13 @@ public class TransactionRecord {
     
     private String description;
     
+    private Integer sales;
+    
     // 构造函数
     public TransactionRecord() {}
     
     public TransactionRecord(String id, String name, BigDecimal cost, BigDecimal price, 
-                           String category, String state, String image, String description) {
+                           String category, String state, String image, String description, Integer sales) {
         this.id = id;
         this.name = name;
         this.cost = cost;
@@ -33,6 +35,7 @@ public class TransactionRecord {
         this.state = state;
         this.image = image;
         this.description = description;
+        this.sales = sales;
     }
     
     // Getter和Setter方法
@@ -100,6 +103,14 @@ public class TransactionRecord {
         this.description = description;
     }
     
+    public Integer getSales() {
+        return sales;
+    }
+    
+    public void setSales(Integer sales) {
+        this.sales = sales;
+    }
+    
     @Override
     public String toString() {
         return "TransactionRecord{" +
@@ -111,6 +122,7 @@ public class TransactionRecord {
                 ", state='" + state + '\'' +
                 ", image='" + image + '\'' +
                 ", description='" + description + '\'' +
+                ", sales=" + sales +
                 '}';
     }
 } 

@@ -3,6 +3,7 @@ import HelloWorld from '@/components/HelloWorld.vue'
 const NotFound = () => import('@/views/404.vue')
 const CallApi = () => import('@/views/CallApi.vue')
 const APIRequest = () => import('@/views/APIRequest.vue')
+const MetadataManagement = () => import('@/views/MetadataManagement.vue')
 
 const routes = [
     {
@@ -19,6 +20,11 @@ const routes = [
         path: '/APIRequest',
         name: 'APIRequest',
         component: APIRequest
+    },
+    {
+        path: '/metadata',
+        name: 'MetadataManagement',
+        component: MetadataManagement
     },
     {
         path: '/:catchAll(.*)',

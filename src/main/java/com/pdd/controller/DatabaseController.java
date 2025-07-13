@@ -75,6 +75,7 @@ public class DatabaseController {
                     recordMap.put("state", record.getState());
                     recordMap.put("image", record.getImage());
                     recordMap.put("description", record.getDescription());
+                    recordMap.put("sales", record.getSales());
                     return recordMap;
                 })
                 .toList();
@@ -106,6 +107,7 @@ public class DatabaseController {
                     recordMap.put("state", record.getState());
                     recordMap.put("image", record.getImage());
                     recordMap.put("description", record.getDescription());
+                    recordMap.put("sales", record.getSales());
                     return recordMap;
                 })
                 .toList();
@@ -138,6 +140,7 @@ public class DatabaseController {
                     recordMap.put("state", record.getState());
                     recordMap.put("image", record.getImage());
                     recordMap.put("description", record.getDescription());
+                    recordMap.put("sales", record.getSales());
                     return recordMap;
                 })
                 .toList();
@@ -179,17 +182,31 @@ public class DatabaseController {
                 ));
             stats.put("categoryStats", categoryStats);
             
-            // 计算总成本和总售价
+            // 计算总成本和总售价（需乘以销量）
             double totalCost = allRecords.stream()
-                .mapToDouble(record -> record.getCost() != null ? record.getCost().doubleValue() : 0.0)
+                .mapToDouble(record -> {
+                    double cost = record.getCost() != null ? record.getCost().doubleValue() : 0.0;
+                    int sales = record.getSales() != null ? record.getSales() : 0;
+                    return cost * sales;
+                })
                 .sum();
             double totalPrice = allRecords.stream()
-                .mapToDouble(record -> record.getPrice() != null ? record.getPrice().doubleValue() : 0.0)
+                .mapToDouble(record -> {
+                    double price = record.getPrice() != null ? record.getPrice().doubleValue() : 0.0;
+                    int sales = record.getSales() != null ? record.getSales() : 0;
+                    return price * sales;
+                })
+                .sum();
+            
+            // 计算总销量
+            int totalSales = allRecords.stream()
+                .mapToInt(record -> record.getSales() != null ? record.getSales() : 0)
                 .sum();
             
             stats.put("totalCost", totalCost);
             stats.put("totalPrice", totalPrice);
             stats.put("totalProfit", totalPrice - totalCost);
+            stats.put("totalSales", totalSales);
             
             // 获取最近7天的数据变化趋势（这里简化处理，实际可以基于时间字段统计）
             stats.put("recentGrowth", "数据统计中...");
@@ -246,5 +263,72 @@ public class DatabaseController {
         responseData.put("message", "API调用次数已重置");
         responseData.put("apiCallCount", apiCallCount);
         return Result.success(responseData);
+    }
+
+    /**
+     * 获取数据库表信息
+     */
+    @GetMapping("/tables")
+    public Result getDatabaseTables() {
+        apiCallCount++; // 增加API调用次数
+        try {
+            List<Map<String, Object>> tables = transactionRecordService.getDatabaseTables();
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("tables", tables);
+            responseData.put("total", tables.size());
+            return Result.success(responseData);
+        } catch (Exception e) {
+            return Result.error("获取数据库表信息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试数据库连接
+     */
+    @GetMapping("/test")
+    public Result testDatabaseConnection() {
+        try {
+            // 简单的数据库连接测试
+            List<Map<String, Object>> result = transactionRecordService.testConnection();
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("message", "数据库连接正常");
+            responseData.put("result", result);
+            return Result.success(responseData);
+        } catch (Exception e) {
+            return Result.error("数据库连接失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取表数据
+     */
+    @GetMapping("/table/{tableName}/data")
+    public Result getTableData(@PathVariable String tableName,
+                              @RequestParam(defaultValue = "1") int page,
+                              @RequestParam(defaultValue = "10") int size) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            Map<String, Object> result = transactionRecordService.getTableData(tableName, page, size);
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("获取表数据失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取表数据总数
+     */
+    @GetMapping("/table/{tableName}/count")
+    public Result getTableCount(@PathVariable String tableName) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            long count = transactionRecordService.getTableCount(tableName);
+            Map<String, Object> result = new HashMap<>();
+            result.put("tableName", tableName);
+            result.put("count", count);
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("获取表数据总数失败: " + e.getMessage());
+        }
     }
 } 

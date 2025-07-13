@@ -317,15 +317,28 @@
                         <span v-else>-</span>
                       </template>
                     </el-table-column>
-                    <el-table-column label="利润" width="100">
+                    <el-table-column label="利润" width="120">
                       <template #default="{ row }">
-                        <span v-if="row.cost && row.price" class="profit" :class="{ 'positive': (row.price - row.cost) > 0, 'negative': (row.price - row.cost) < 0 }">
-                          ¥{{ (row.price - row.cost).toFixed(2) }}
-                        </span>
+                        <div v-if="row.cost && row.price">
+                          <div class="profit" :class="{ 'positive': (row.price - row.cost) > 0, 'negative': (row.price - row.cost) < 0 }">
+                            ¥{{ (row.price - row.cost).toFixed(2) }}
+                          </div>
+                          <div v-if="row.sales" class="total-profit" :class="{ 'positive': ((row.price - row.cost) * row.sales) > 0, 'negative': ((row.price - row.cost) * row.sales) < 0 }">
+                            总利润: ¥{{ ((row.price - row.cost) * row.sales).toFixed(2) }}
+                          </div>
+                        </div>
                         <span v-else>-</span>
                       </template>
                     </el-table-column>
                     <el-table-column prop="category" label="分类" width="120" />
+                    <el-table-column prop="sales" label="销量" width="100">
+                      <template #default="{ row }">
+                        <span v-if="row.sales !== undefined && row.sales !== null" class="sales-count">
+                          {{ row.sales }}
+                        </span>
+                        <span v-else>-</span>
+                      </template>
+                    </el-table-column>
                     <el-table-column prop="status" label="状态" width="100">
                       <template #default="{ row }">
                         <el-tag 
@@ -368,7 +381,7 @@
                   </el-divider>
                   
                   <div class="calculation-content">
-                    <div class="calculation-stats">
+                    <div class="calculation-stats" v-if="showCalculationResult">
                       <el-row :gutter="20">
                         <el-col :span="6">
                           <div class="stat-card">
@@ -378,13 +391,13 @@
                         </el-col>
                         <el-col :span="6">
                           <div class="stat-card">
-                            <div class="stat-title">总成本</div>
+                            <div class="stat-title">总成本(含销量)</div>
                             <div class="stat-value cost">¥{{ totalCost.toFixed(2) }}</div>
                           </div>
                         </el-col>
                         <el-col :span="6">
                           <div class="stat-card">
-                            <div class="stat-title">总售价</div>
+                            <div class="stat-title">总售价(含销量)</div>
                             <div class="stat-value revenue">¥{{ totalRevenue.toFixed(2) }}</div>
                           </div>
                         </el-col>
@@ -493,10 +506,23 @@
                 <span v-if="selectedProduct.price" class="sale-price">¥{{ selectedProduct.price }}</span>
                 <span v-else>-</span>
               </p>
-              <p v-if="selectedProduct.cost && selectedProduct.price"><strong>利润:</strong> 
+              <p v-if="selectedProduct.cost && selectedProduct.price">
+                <strong>单件利润:</strong> 
                 <span class="profit" :class="{ 'positive': (selectedProduct.price - selectedProduct.cost) > 0, 'negative': (selectedProduct.price - selectedProduct.cost) < 0 }">
                   ¥{{ (selectedProduct.price - selectedProduct.cost).toFixed(2) }}
                 </span>
+              </p>
+              <p v-if="selectedProduct.cost && selectedProduct.price && selectedProduct.sales">
+                <strong>总利润:</strong> 
+                <span class="profit" :class="{ 'positive': ((selectedProduct.price - selectedProduct.cost) * selectedProduct.sales) > 0, 'negative': ((selectedProduct.price - selectedProduct.cost) * selectedProduct.sales) < 0 }">
+                  ¥{{ ((selectedProduct.price - selectedProduct.cost) * selectedProduct.sales).toFixed(2) }}
+                </span>
+              </p>
+              <p><strong>销量:</strong> 
+                <span v-if="selectedProduct.sales !== undefined && selectedProduct.sales !== null" class="sales-count">
+                  {{ selectedProduct.sales }}
+                </span>
+                <span v-else>-</span>
               </p>
               <p><strong>分类:</strong> {{ selectedProduct.category || '-' }}</p>
               <p><strong>状态:</strong> 
@@ -672,14 +698,16 @@ export default {
     totalCost() {
       return this.products.reduce((sum, product) => {
         const cost = parseFloat(product.cost || product.purchasePrice || 0)
-        return sum + (isNaN(cost) ? 0 : cost)
+        const sales = parseInt(product.sales || 0)
+        return sum + (isNaN(cost) ? 0 : cost * sales)
       }, 0)
     },
     
     totalRevenue() {
       return this.products.reduce((sum, product) => {
         const revenue = parseFloat(product.price || product.salePrice || 0)
-        return sum + (isNaN(revenue) ? 0 : revenue)
+        const sales = parseInt(product.sales || 0)
+        return sum + (isNaN(revenue) ? 0 : revenue * sales)
       }, 0)
     },
     
@@ -779,6 +807,7 @@ export default {
         const res = await axios(config)
         this.apiResponse = res.data
         this.error = null
+        this.showCalculationResult = false
         this.$message.success('请求成功')
         this.resetPagination()
         
@@ -840,6 +869,7 @@ export default {
       this.products = []
       this.excelFileName = ''
       this.uploadedFiles = []
+      this.showCalculationResult = false
       this.resetPagination()
     },
     
@@ -937,12 +967,12 @@ export default {
         const profitRate = this.totalCost > 0 ? (profit / this.totalCost) * 100 : 0
         
         // 设置结果显示
-        this.calculationResultTitle = '利润计算完成'
+        this.calculationResultTitle = '滚动成本计算完成'
         this.calculationResultType = profit >= 0 ? 'success' : 'warning'
         this.calculationResultDescription = `
           商品总数: ${this.products.length} 个
-          总成本: ¥${this.totalCost.toFixed(2)}
-          总售价: ¥${this.totalRevenue.toFixed(2)}
+          总成本(含销量): ¥${this.totalCost.toFixed(2)}
+          总售价(含销量): ¥${this.totalRevenue.toFixed(2)}
           总利润: ¥${profit.toFixed(2)}
           利润率: ${profitRate.toFixed(2)}%
         `
@@ -966,14 +996,14 @@ export default {
         
         // 显示成功消息
         if (profit >= 0) {
-          this.$message.success(`利润计算完成！总利润: ¥${profit.toFixed(2)}`)
+          this.$message.success(`滚动成本计算完成！总利润: ¥${profit.toFixed(2)}`)
         } else {
-          this.$message.warning(`利润计算完成！总亏损: ¥${Math.abs(profit).toFixed(2)}`)
+          this.$message.warning(`滚动成本计算完成！总亏损: ¥${Math.abs(profit).toFixed(2)}`)
         }
         
       } catch (error) {
-        this.$message.error('利润计算失败')
-        console.error('利润计算错误:', error)
+        this.$message.error('滚动成本计算失败')
+        console.error('滚动成本计算错误:', error)
       } finally {
         this.calculating = false
       }
@@ -996,13 +1026,23 @@ export default {
             totalProfit: this.totalProfit,
             profitRate: this.totalCost > 0 ? (this.totalProfit / this.totalCost) * 100 : 0
           },
-          products: this.products.map(product => ({
-            id: product.id,
-            name: product.name,
-            cost: parseFloat(product.cost || product.purchasePrice || 0),
-            price: parseFloat(product.price || product.salePrice || 0),
-            profit: parseFloat(product.price || product.salePrice || 0) - parseFloat(product.cost || product.purchasePrice || 0)
-          }))
+          products: this.products.map(product => {
+            const cost = parseFloat(product.cost || product.purchasePrice || 0)
+            const price = parseFloat(product.price || product.salePrice || 0)
+            const sales = parseInt(product.sales || 0)
+            const unitProfit = price - cost
+            const totalProfit = unitProfit * sales
+            
+            return {
+              id: product.id,
+              name: product.name,
+              cost: cost,
+              price: price,
+              sales: sales,
+              unitProfit: unitProfit,
+              totalProfit: totalProfit
+            }
+          })
         }
         
         // 创建并下载文件
@@ -1157,8 +1197,9 @@ export default {
       const headers = data[0] // 第一行作为表头
       const rows = data.slice(1) // 其余行作为数据
       
-      // 清空现有商品数据
+      // 清空现有商品数据并隐藏之前的计算结果
       this.products = []
+      this.showCalculationResult = false
       
       // 处理每一行数据
       rows.forEach((row, index) => {
@@ -1199,6 +1240,12 @@ export default {
               case '采购价格':
               case '进货价':
                 product.cost = parseFloat(value) || 0
+                break
+              case 'sales':
+              case '销量':
+              case '销售数量':
+              case '已售数量':
+                product.sales = parseInt(value) || 0
                 break
               case 'category':
               case '分类':
@@ -1259,16 +1306,16 @@ export default {
       try {
         // 创建示例数据
         const templateData = [
-          ['商品ID', '商品名称', '进货价', '卖出价', '分类', '状态', '图片链接', '描述'],
-          ['P001', '立白洗衣液去渍', 80, 98, '生活用品', 'active', 'https://tse4-mm.cn.bing.net/th/id/OIP-C.45TxzesOc67PKw-3ihJriAHaHa?w=208&h=208&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3', '洗衣液'],
-          ['P002', '立白亮白护色洗衣液', 50, 88, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
-          ['P003', '立白大师香氛洗衣液', 60, 188, '生活用品', 'on_sale', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.QhePUmkasB5ggpZzzQYj7wHaNU?w=115&h=206&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
-          ['P004', '立白除菌除螨洗衣液*4', 188, 288, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '洗衣液'],
-          ['P005', '立白超洁薰衣草', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P006', '立白超洁薰衣草1', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P007', '立白超洁薰衣草2', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P008', '立白超洁薰衣草3', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
-          ['P009', '立白超洁薰衣草4', 68, 79, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液']
+          ['商品ID', '商品名称', '进货价', '卖出价', '销量', '分类', '状态', '图片链接', '描述'],
+          ['P001', '立白洗衣液去渍', 80, 98, 150, '生活用品', 'active', 'https://tse4-mm.cn.bing.net/th/id/OIP-C.45TxzesOc67PKw-3ihJriAHaHa?w=208&h=208&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3', '洗衣液'],
+          ['P002', '立白亮白护色洗衣液', 50, 88, 89, '生活用品', 'active', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.NQD0ClnokHOAXwd5PAkw6wHaHa?w=212&h=212&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
+          ['P003', '立白大师香氛洗衣液', 60, 188, 234, '生活用品', 'on_sale', 'https://tse3-mm.cn.bing.net/th/id/OIP-C.QhePUmkasB5ggpZzzQYj7wHaNU?w=115&h=206&c=7&r=0&o=7&dpr=1.7&pid=1.7&rm=3', '洗衣液'],
+          ['P004', '立白除菌除螨洗衣液*4', 188, 288, 67, '生活用品', 'pending', 'https://ts1.tc.mm.bing.net/th/id/OIP-C.aKm5UPLgXri6LF7Yp205fwHaIs?rs=1&pid=ImgDetMain&o=7&rm=3', '洗衣液'],
+          ['P005', '立白超洁薰衣草', 68, 79, 156, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P006', '立白超洁薰衣草1', 68, 79, 89, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P007', '立白超洁薰衣草2', 68, 79, 234, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P008', '立白超洁薰衣草3', 68, 79, 445, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液'],
+          ['P009', '立白超洁薰衣草4', 68, 79, 178, '生活用品', 'active', 'https://img.alicdn.com/bao/uploaded/i1/2208302994653/O1CN018vxw5Z1kF7fLCweqW_!!0-item_pic.jpg', '洗衣液']
         ]
         
         // 创建工作簿
@@ -1696,6 +1743,16 @@ export default {
 
 .profit.negative {
   color: #f56c6c;
+}
+
+.sales-count {
+  font-weight: 600;
+  color: #409eff;
+}
+
+.total-profit {
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .price {

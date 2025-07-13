@@ -112,6 +112,10 @@
                       <span>已售：</span>
                       <span>{{ product.soldCount }}</span>
                     </div>
+                    <div class="text-gray-500">
+                      <span>销量：</span>
+                      <span>{{ product.sales }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -176,6 +180,7 @@ export default {
           salePrice: '29.90',
           profit: '10.00',
           soldCount: 3421,
+          sales: 150,
           image: 'https://mastergo.com/ai/api/search-image?query=A photo of green dish soap bottle with transparent liquid, simple white background, product photography, high resolution, commercial quality&width=200&height=200&orientation=squarish&flag=cdd01b24d30a7705c5ad63691edc658e'
         },
         {
@@ -186,6 +191,7 @@ export default {
           salePrice: '39.90',
           profit: '14.00',
           soldCount: 2876,
+          sales: 89,
           image: 'https://mastergo.com/ai/api/search-image?query=A photo of premium shampoo bottle with golden cap, simple white background, product photography, high resolution, commercial quality&width=200&height=200&orientation=squarish&flag=23311795e66b8bfa40876b45152c6e43'
         },
         {
@@ -196,6 +202,7 @@ export default {
           salePrice: '49.90',
           profit: '17.00',
           soldCount: 1932,
+          sales: 234,
           image: 'https://mastergo.com/ai/api/search-image?query=A photo of facial cleanser tube with pump dispenser, simple white background, product photography, high resolution, commercial quality&width=200&height=200&orientation=squarish&flag=8e9725f5fe2f23b39b2fa280f357f974'
         }
       ]
