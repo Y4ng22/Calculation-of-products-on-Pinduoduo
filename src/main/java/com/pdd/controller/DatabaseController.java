@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import com.pdd.model.TransactionRecord;
+import org.springframework.web.bind.annotation.RequestBody;
+import com.pdd.service.DatabaseService;
 
 @RestController
 @RequestMapping("/api/database")
@@ -16,6 +19,9 @@ public class DatabaseController {
 
     @Autowired
     private TransactionRecordService transactionRecordService;
+    
+    @Autowired
+    private DatabaseService databaseService;
     
     // 用于统计API调用次数
     private static int apiCallCount = 0;
@@ -64,13 +70,36 @@ public class DatabaseController {
     }
 
     /**
-     * 查询所有记录
+     * 查询所有记录（支持分页）
      */
     @GetMapping("/records")
-    public Result getAllRecords() {
+    public Result getAllRecords(@RequestParam(defaultValue = "1") int page,
+                               @RequestParam(defaultValue = "10") int size) {
         apiCallCount++; // 增加API调用次数
         try {
-            List<Map<String, Object>> records = transactionRecordService.findAll().stream()
+            // 获取所有记录用于计算总数
+            List<TransactionRecord> allRecords = transactionRecordService.findAll();
+            int total = allRecords.size();
+            
+            // 计算分页
+            int startIndex = (page - 1) * size;
+            int endIndex = Math.min(startIndex + size, total);
+            
+            // 如果起始索引超出范围，返回空结果
+            if (startIndex >= total) {
+                Map<String, Object> responseData = new HashMap<>();
+                responseData.put("records", new ArrayList<>());
+                responseData.put("total", total);
+                responseData.put("page", page);
+                responseData.put("size", size);
+                responseData.put("totalPages", (int) Math.ceil((double) total / size));
+                return Result.success(responseData);
+            }
+            
+            // 获取当前页的记录
+            List<TransactionRecord> pageRecords = allRecords.subList(startIndex, endIndex);
+            
+            List<Map<String, Object>> records = pageRecords.stream()
                 .map(record -> {
                     Map<String, Object> recordMap = new HashMap<>();
                     recordMap.put("id", record.getId());
@@ -89,7 +118,10 @@ public class DatabaseController {
             
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("records", records);
-            responseData.put("total", records.size());
+            responseData.put("total", total);
+            responseData.put("page", page);
+            responseData.put("size", size);
+            responseData.put("totalPages", (int) Math.ceil((double) total / size));
             return Result.success(responseData);
         } catch (Exception e) {
             return Result.error("查询失败: " + e.getMessage());
@@ -415,4 +447,18 @@ public class DatabaseController {
         }
     }
 
+    @PostMapping("/table/{tableName}/column/add")
+    public Result<?> addColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
+        return databaseService.addColumn(tableName, columnInfo);
+    }
+
+    @PostMapping("/table/{tableName}/column/update")
+    public Result<?> updateColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
+        return databaseService.updateColumn(tableName, columnInfo);
+    }
+
+    @PostMapping("/table/{tableName}/column/delete")
+    public Result<?> deleteColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
+        return databaseService.deleteColumn(tableName, (String) columnInfo.get("fieldName"));
+    }
 } 

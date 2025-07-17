@@ -175,9 +175,24 @@
           <div class="mt-3">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-medium text-gray-900">表结构: {{ selectedTable?.tableName }}</h3>
-              <button @click="closeTableModal" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times text-xl"></i>
-              </button>
+              <div class="flex items-center space-x-2">
+                <button @click="refreshTableStructure" class="px-3 py-1 bg-blue-500 text-white rounded-button hover:bg-blue-600 flex items-center space-x-1">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>刷新</span>
+                </button>
+                <button @click="openAddColumnModal" class="px-3 py-1 bg-green-500 text-white rounded-button hover:bg-green-600 flex items-center space-x-1">
+                  <i class="fas fa-plus"></i>
+                  <span>添加字段</span>
+                </button>
+                <button @click="closeTableModal" class="text-gray-400 hover:text-gray-600">
+                  <i class="fas fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+            <!-- 反馈信息 -->
+            <div v-if="connectionStatus && connectionMessage" class="mb-2 p-2 rounded"
+                 :class="connectionStatus === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'">
+              {{ connectionMessage }}
             </div>
             
             <div v-if="selectedTable?.columns" class="overflow-x-auto">
@@ -190,16 +205,25 @@
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">键</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">默认值</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">额外</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                  <tr v-for="column in selectedTable.columns" :key="column.Field">
+                  <tr v-for="(column, colIndex) in selectedTable.columns" :key="column.Field">
                     <td class="px-4 py-2 text-sm text-gray-900">{{ column.Field }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ column.Type }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ column.Null }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ column.Key }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ column.Default || '-' }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ column.Extra || '-' }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      <button @click="openEditColumnModal(column, colIndex)" class="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50" title="编辑字段">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button @click="deleteColumn(column, colIndex)" class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50" title="删除字段">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -208,6 +232,100 @@
             <div v-if="selectedTable?.error" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p class="text-red-800">{{ selectedTable.error }}</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增字段模态框 -->
+      <div v-if="showAddColumnModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-24 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900">添加字段</h3>
+              <button @click="closeAddColumnModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            <form @submit.prevent="saveNewColumn" class="space-y-4">
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">字段名</label>
+                <input v-model="newColumn.Field" type="text" class="px-3 py-2 border border-gray-300 rounded-md" required />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">类型</label>
+                <input v-model="newColumn.Type" type="text" class="px-3 py-2 border border-gray-300 rounded-md" required placeholder="如 varchar(255), int(11)" />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">是否为空</label>
+                <select v-model="newColumn.Null" class="px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="YES">允许</option>
+                  <option value="NO">不允许</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">键</label>
+                <input v-model="newColumn.Key" type="text" class="px-3 py-2 border border-gray-300 rounded-md" placeholder="如 PRI, UNI, MUL" />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">默认值</label>
+                <input v-model="newColumn.Default" type="text" class="px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">额外</label>
+                <input v-model="newColumn.Extra" type="text" class="px-3 py-2 border border-gray-300 rounded-md" placeholder="如 auto_increment" />
+              </div>
+              <div class="flex items-center justify-end space-x-3 pt-4">
+                <button type="button" @click="closeAddColumnModal" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">取消</button>
+                <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">添加</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- 编辑字段模态框 -->
+      <div v-if="showEditColumnModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-24 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900">编辑字段</h3>
+              <button @click="closeEditColumnModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            <form @submit.prevent="saveEditColumn" class="space-y-4">
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">字段名</label>
+                <input v-model="editingColumn.Field" type="text" class="px-3 py-2 border border-gray-300 rounded-md" required />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">类型</label>
+                <input v-model="editingColumn.Type" type="text" class="px-3 py-2 border border-gray-300 rounded-md" required />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">是否为空</label>
+                <select v-model="editingColumn.Null" class="px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="YES">允许</option>
+                  <option value="NO">不允许</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">键</label>
+                <input v-model="editingColumn.Key" type="text" class="px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">默认值</label>
+                <input v-model="editingColumn.Default" type="text" class="px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <label class="text-sm font-medium text-gray-700">额外</label>
+                <input v-model="editingColumn.Extra" type="text" class="px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div class="flex items-center justify-end space-x-3 pt-4">
+                <button type="button" @click="closeEditColumnModal" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">取消</button>
+                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">保存</button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -406,6 +524,9 @@
 </template>
 
 <script>
+import { ElMessageBox, ElMessage } from 'element-plus'
+import 'element-plus/dist/index.css'
+
 export default {
   name: 'MetadataManagement',
   data() {
@@ -435,7 +556,24 @@ export default {
       editingRowData: {},
       // 新增相关
       showAddModal: false,
-      newRowData: {}
+      newRowData: {},
+      // 字段结构相关
+      showAddColumnModal: false,
+      showEditColumnModal: false,
+      newColumn: {
+        Field: '',
+        Type: '',
+        Null: 'YES',
+        Key: '',
+        Default: '',
+        Extra: ''
+      },
+      editingColumn: {},
+      editingColumnIndex: null,
+      // 删除字段确认相关状态
+      showDeleteColumnModal: false,
+      pendingDeleteColumn: null,
+      pendingDeleteColumnIndex: null,
     }
   },
   computed: {
@@ -450,10 +588,10 @@ export default {
     }
   },
   mounted() {
-    this.loadTables()
+    this.loadTables(false)
   },
   methods: {
-    async loadTables() {
+    async loadTables(showMessage = true) {
       this.loading = true
       this.error = null
       try {
@@ -472,13 +610,16 @@ export default {
           this.tables = result.data.tables || []
           this.lastUpdateTime = new Date().toLocaleString('zh-CN')
           console.log('成功加载表信息:', this.tables)
+          if (showMessage) ElMessage.success('数据库表信息已刷新')
         } else {
           this.error = result.msg || '获取表信息失败'
           console.error('获取表信息失败:', result.msg)
+          if (showMessage) ElMessage.error(this.error)
         }
       } catch (error) {
         this.error = `请求失败: ${error.message}`
         console.error('请求失败:', error)
+        if (showMessage) ElMessage.error(this.error)
       } finally {
         this.loading = false
       }
@@ -493,16 +634,13 @@ export default {
         const result = await response.json()
         
         if (result.code === 1) {
-          this.connectionStatus = 'success'
-          this.connectionMessage = '数据库连接正常！'
+          ElMessage.success('数据库连接正常！')
           console.log('连接测试结果:', result)
         } else {
-          this.connectionStatus = 'error'
-          this.connectionMessage = `连接测试失败: ${result.msg}`
+          ElMessage.error(`连接测试失败: ${result.msg}`)
         }
       } catch (error) {
-        this.connectionStatus = 'error'
-        this.connectionMessage = `连接测试失败: ${error.message}`
+        ElMessage.error(`连接测试失败: ${error.message}`)
         console.error('连接测试失败:', error)
       }
     },
@@ -513,7 +651,7 @@ export default {
     },
     
     refreshTables() {
-      this.loadTables()
+      this.loadTables(true)
     },
     
     viewTableDetails(table) {
@@ -561,12 +699,10 @@ export default {
             this.tableColumns = Object.keys(this.tableData[0])
           }
         } else {
-          this.connectionStatus = 'error'
-          this.connectionMessage = `加载表数据失败: ${result.msg}`
+          ElMessage.error(`加载表数据失败: ${result.msg}`)
         }
       } catch (error) {
-        this.connectionStatus = 'error'
-        this.connectionMessage = `加载表数据失败: ${error.message}`
+        ElMessage.error(`加载表数据失败: ${error.message}`)
         console.error('加载表数据失败:', error)
       } finally {
         this.dataLoading = false
@@ -697,15 +833,12 @@ export default {
         if (result.code === 1) {
           this.tableData[this.editingIndex] = { ...this.editingRow, ...this.editingRowData }; // 更新列表中的数据
           this.closeEditModal();
-          this.connectionStatus = 'success';
-          this.connectionMessage = `记录更新成功: ${this.selectedTableData.tableName}`;
+          ElMessage.success(`记录更新成功: ${this.selectedTableData.tableName}`);
         } else {
-          this.connectionStatus = 'error';
-          this.connectionMessage = `更新失败: ${result.msg}`;
+          ElMessage.error(`更新失败: ${result.msg}`);
         }
       } catch (error) {
-        this.connectionStatus = 'error';
-        this.connectionMessage = `更新失败: ${error.message}`;
+        ElMessage.error(`更新失败: ${error.message}`);
         console.error('更新失败:', error);
       } finally {
         this.dataLoading = false;
@@ -713,44 +846,21 @@ export default {
     },
 
     deleteRow(row, index) {
-      // 模拟删除，实际需要发送删除请求
-      console.log('删除记录:', row, '索引:', index);
-      // 例如，可以发送一个删除请求到后端
-      // try {
-      //   const response = await fetch(`/api/database/table/${this.selectedTableData.tableName}/delete`, {
-      //     method: 'POST',
-      //     headers: {
-      //       'Content-Type': 'application/json'
-      //     },
-      //     body: JSON.stringify({ id: row.id }) // 假设id是主键
-      //   });
-      //   if (!response.ok) {
-      //     throw new Error(`HTTP error! status: ${response.status}`);
-      //   }
-      //   const result = await response.json();
-      //   if (result.code === 1) {
-      //     this.tableData.splice(index, 1);
-      //     this.totalPages = Math.ceil(this.tableData.length / this.pageSize);
-      //     this.currentPage = Math.min(this.currentPage, this.totalPages);
-      //     this.loadTableData(); // 重新加载数据
-      //     this.connectionStatus = 'success';
-      //     this.connectionMessage = `记录删除成功: ${this.selectedTableData.tableName}`;
-      //   } else {
-      //     this.connectionStatus = 'error';
-      //     this.connectionMessage = `删除失败: ${result.msg}`;
-      //   }
-      // } catch (error) {
-      //   this.connectionStatus = 'error';
-      //   this.connectionMessage = `删除失败: ${error.message}`;
-      //   console.error('删除失败:', error);
-      // } finally {
-      //   this.dataLoading = false;
-      // }
-      
-      // 确认删除
-      if (confirm(`确定要删除这条记录吗？\n${JSON.stringify(row, null, 2)}`)) {
+      // 使用Element Plus气泡确认
+      ElMessageBox.confirm(
+        `确定要删除这条记录吗？<pre style='margin:0;color:#d32f2f;'>${JSON.stringify(row, null, 2)}</pre>`,
+        '删除确认',
+        {
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+          type: 'warning',
+          dangerouslyUseHTMLString: true,
+        }
+      ).then(() => {
         this.performDelete(row, index);
-      }
+      }).catch(() => {
+        ElMessage.info('已取消删除');
+      });
     },
 
     async performDelete(row, index) {
@@ -772,15 +882,12 @@ export default {
           this.totalPages = Math.ceil(this.tableData.length / this.pageSize);
           this.currentPage = Math.min(this.currentPage, this.totalPages);
           this.loadTableData(); // 重新加载数据
-          this.connectionStatus = 'success';
-          this.connectionMessage = `记录删除成功: ${this.selectedTableData.tableName}`;
+          ElMessage.success(`记录删除成功: ${this.selectedTableData.tableName}`);
         } else {
-          this.connectionStatus = 'error';
-          this.connectionMessage = `删除失败: ${result.msg}`;
+          ElMessage.error(`删除失败: ${result.msg}`);
         }
       } catch (error) {
-        this.connectionStatus = 'error';
-        this.connectionMessage = `删除失败: ${error.message}`;
+        ElMessage.error(`删除失败: ${error.message}`);
         console.error('删除失败:', error);
       } finally {
         this.dataLoading = false;
@@ -789,6 +896,7 @@ export default {
 
     refreshTableData() {
       this.loadTableData();
+      ElMessage.success('表数据已刷新');
     },
 
     addNewRow() {
@@ -823,15 +931,12 @@ export default {
           this.currentPage = Math.min(this.currentPage, this.totalPages); // 确保当前页不超过总页数
           this.loadTableData(); // 重新加载数据
           this.closeAddModal();
-          this.connectionStatus = 'success';
-          this.connectionMessage = `记录新增成功: ${this.selectedTableData.tableName}`;
+          ElMessage.success(`记录新增成功: ${this.selectedTableData.tableName}`);
         } else {
-          this.connectionStatus = 'error';
-          this.connectionMessage = `新增失败: ${result.msg}`;
+          ElMessage.error(`新增失败: ${result.msg}`);
         }
       } catch (error) {
-        this.connectionStatus = 'error';
-        this.connectionMessage = `新增失败: ${error.message}`;
+        ElMessage.error(`新增失败: ${error.message}`);
         console.error('新增失败:', error);
       } finally {
         this.dataLoading = false;
@@ -854,7 +959,127 @@ export default {
       if (columnName === 'password') return '请输入密码';
       if (columnName === 'email') return '请输入邮箱';
       return '请输入值';
-    }
+    },
+
+    openAddColumnModal() {
+      this.newColumn = { Field: '', Type: '', Null: 'YES', Key: '', Default: '', Extra: '' };
+      this.showAddColumnModal = true;
+    },
+    closeAddColumnModal() {
+      this.showAddColumnModal = false;
+      // 不清空connectionStatus和connectionMessage，保留反馈
+    },
+    async saveNewColumn() {
+      if (!this.selectedTable) return;
+      try {
+        const response = await fetch(`/api/database/table/${this.selectedTable.tableName}/column/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.newColumn)
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const result = await response.json();
+        if (result.code === 1) {
+          this.selectedTable.columns.push({ ...this.newColumn });
+          this.closeAddColumnModal();
+          ElMessage.success(`字段添加成功: ${this.newColumn.Field}`);
+          this.loadTables(); // 刷新表结构
+        } else {
+          ElMessage.error(`添加字段失败: ${result.msg}`);
+        }
+      } catch (error) {
+        ElMessage.error(`添加字段失败: ${error.message}`);
+      }
+    },
+    openEditColumnModal(column, colIndex) {
+      this.editingColumn = { ...column };
+      this.editingColumnIndex = colIndex;
+      this.showEditColumnModal = true;
+    },
+    closeEditColumnModal() {
+      this.showEditColumnModal = false;
+      this.editingColumn = {};
+      this.editingColumnIndex = null;
+      // 不清空connectionStatus和connectionMessage，保留反馈
+    },
+    async saveEditColumn() {
+      if (!this.selectedTable) return;
+      try {
+        const response = await fetch(`/api/database/table/${this.selectedTable.tableName}/column/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.editingColumn)
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const result = await response.json();
+        if (result.code === 1) {
+          this.$set(this.selectedTable.columns, this.editingColumnIndex, { ...this.editingColumn });
+          this.closeEditColumnModal();
+          this.connectionStatus = 'success';
+          this.connectionMessage = `字段修改成功: ${this.editingColumn.Field}`;
+          this.loadTables();
+        } else {
+          this.connectionStatus = 'error';
+          this.connectionMessage = `修改字段失败: ${result.msg}`;
+        }
+      } catch (error) {
+        this.connectionStatus = 'error';
+        this.connectionMessage = `修改字段失败: ${error.message}`;
+      }
+    },
+    deleteColumn(column, colIndex) {
+      ElMessageBox.confirm(
+        `确定要删除字段 <b style="color:red">${column.Field}</b> 吗？此操作不可恢复。`,
+        '删除确认',
+        {
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+          type: 'warning',
+          dangerouslyUseHTMLString: true,
+        }
+      ).then(async () => {
+        this.dataLoading = true;
+        try {
+          const response = await fetch(`/api/database/table/${this.selectedTable.tableName}/column/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fieldName: column.Field })
+          });
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const result = await response.json();
+          if (result.code === 1) {
+            this.selectedTable.columns.splice(colIndex, 1);
+            ElMessage.success(`字段删除成功: ${column.Field}`);
+            this.loadTables();
+          } else {
+            ElMessage.error(`删除字段失败: ${result.msg}`);
+          }
+        } catch (error) {
+          ElMessage.error(`删除字段失败: ${error.message}`);
+        } finally {
+          this.dataLoading = false;
+        }
+      }).catch(() => {
+        ElMessage.info('已取消删除');
+      });
+    },
+    async refreshTableStructure() {
+      if (!this.selectedTable) return;
+      try {
+        const response = await fetch(`/api/database/tables`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const result = await response.json();
+        if (result.code === 1) {
+          const table = result.data.tables.find(t => t.tableName === this.selectedTable.tableName);
+          if (table) this.selectedTable.columns = table.columns;
+          ElMessage.success('表结构已刷新');
+        } else {
+          ElMessage.error(result.msg || '刷新失败');
+        }
+      } catch (error) {
+        ElMessage.error(error.message);
+      }
+    },
   }
 }
 </script>

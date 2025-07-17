@@ -1458,11 +1458,12 @@ export default {
         }
 
         // 发送到后端接口
-        const response = await axios.post('http://localhost:8089/api/database/write', requestData, {
+        const response = await axios.post('/api/database/write', requestData, {
           headers: {
             'Content-Type': 'application/json'
           }
-        })
+        });
+
 
         if (response.data.code === 1) {
           this.$message.success('数据已成功写入数据库')

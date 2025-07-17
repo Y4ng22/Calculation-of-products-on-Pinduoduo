@@ -7,7 +7,11 @@
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-title">商品总数</div>
-          <div class="stat-value">{{ products.length }}</div>
+          <div class="stat-value">{{ allProducts.length }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">选中的商品数</div>
+          <div class="stat-value" style="color:#409eff;">{{ selectedProductIds.length }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">总成本</div>
@@ -38,7 +42,12 @@
           </div>
         </template>
         <div class="products-content">
-          <el-table :data="products" style="width: 100%" v-loading="loading" empty-text="暂无商品数据"
+          <el-table
+            ref="productTable"
+            :data="products"
+            style="width: 100%"
+            v-loading="loading"
+            empty-text="暂无商品数据"
             @selection-change="handleSelectionChange"
           >
             <el-table-column type="selection" width="55" />
@@ -95,6 +104,19 @@
               </template>
             </el-table-column>
           </el-table>
+          
+          <!-- 分页组件 -->
+          <div class="pagination-container">
+            <el-pagination
+              v-model:current-page="pagination.page"
+              v-model:page-size="pagination.size"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="pagination.total"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+            />
+          </div>
         </div>
       </el-card>
       <el-dialog v-model="productDetailVisible" title="商品详情" width="600px" :before-close="handleCloseProductDetail">
@@ -127,29 +149,53 @@
       </el-dialog>
     </div>
   </div>
+  <!-- 商品销量预测模块 -->
+  <div class="main-content">
+    <el-card class="sales-forecast-card" shadow="never">
+      <template #header>
+        <div class="sales-forecast-header">
+          <el-icon><Shop /></el-icon>
+          <span>商品销量预测</span>
+        </div>
+      </template>
+      <div class="sales-forecast-content">
+        <!-- 预测内容待添加 -->
+      </div>
+    </el-card>
+  </div>
 </template>
 
 <script>
 import { Shop, Picture } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 export default {
   name: 'ProductDisplay',
   components: { Shop, Picture },
   data() {
     return {
       products: [],
+      allProducts: [], // 存储所有商品数据用于统计
       loading: false,
       productDetailVisible: false,
       selectedProduct: null,
-      selectedProducts: []
+      selectedProducts: [],
+      pagination: {
+        page: 1,
+        size: 10,
+        total: 0
+      },
+      selectedProductIds: []
     }
   },
   mounted() {
     this.fetchProducts()
+    this.fetchAllProducts()
   },
   computed: {
     computedProducts() {
-      return this.selectedProducts.length > 0 ? this.selectedProducts : this.products
+      // 只用 selectedProductIds 计算 selectedProducts
+      return this.selectedProductIds.length > 0 ? this.allProducts.filter(item => this.selectedProductIds.includes(item.id)) : this.allProducts
     },
     totalProfit() {
       return this.computedProducts.reduce((sum, p) => {
@@ -184,19 +230,50 @@ export default {
     async fetchProducts() {
       this.loading = true
       try {
-        const res = await axios.get('/api/database/records')
-        if (res.data.code === 1 && res.data.data && res.data.data.records) {
+        const res = await axios.get('/api/database/records', {
+          params: {
+            page: this.pagination.page,
+            size: this.pagination.size
+          }
+        })
+        if (res.data.code === 1 && res.data.data) {
           this.products = res.data.data.records.map(item => ({
             ...item,
             status: item.status || item.state
           }))
+          this.pagination.total = res.data.data.total
         } else {
           this.products = []
+          this.pagination.total = 0
         }
       } catch (e) {
         this.products = []
+        this.pagination.total = 0
       } finally {
         this.loading = false
+        this.syncSelection()
+      }
+    },
+    
+    // 获取所有商品数据用于统计
+    async fetchAllProducts() {
+      try {
+        const res = await axios.get('/api/database/records', {
+          params: {
+            page: 1,
+            size: 999999 // 获取所有数据
+          }
+        })
+        if (res.data.code === 1 && res.data.data) {
+          this.allProducts = res.data.data.records.map(item => ({
+            ...item,
+            status: item.status || item.state
+          }))
+        } else {
+          this.allProducts = []
+        }
+      } catch (e) {
+        this.allProducts = []
       }
     },
     getStatusType(status) {
@@ -219,8 +296,43 @@ export default {
       this.productDetailVisible = false
       this.selectedProduct = null
     },
+    // 自动勾选当前页已选商品
+    syncSelection() {
+      this.$nextTick(() => {
+        if (!this.$refs.productTable) return
+        // 先清空所有 selection
+        this.$refs.productTable.clearSelection()
+        // 再勾选 selectedProductIds 里的
+        this.products.forEach(row => {
+          if (this.selectedProductIds.includes(row.id)) {
+            this.$refs.productTable.toggleRowSelection(row, true)
+          }
+        })
+      })
+    },
     handleSelectionChange(selection) {
-      this.selectedProducts = selection
+      // 先移除当前页所有商品的 id
+      const currentPageIds = this.products.map(item => item.id)
+      this.selectedProductIds = this.selectedProductIds.filter(id => !currentPageIds.includes(id))
+      // 再把当前页选中的 id 加进去
+      this.selectedProductIds.push(...selection.map(item => item.id))
+      // 去重
+      this.selectedProductIds = Array.from(new Set(this.selectedProductIds))
+      // 选中的商品列表
+      this.selectedProducts = this.allProducts.filter(item => this.selectedProductIds.includes(item.id))
+    },
+    
+    // 处理每页显示数量变化
+    handleSizeChange(size) {
+      this.pagination.size = size
+      this.pagination.page = 1 // 重置到第一页
+      this.fetchProducts()
+    },
+    
+    // 处理当前页变化
+    handleCurrentChange(page) {
+      this.pagination.page = page
+      this.fetchProducts()
     }
   }
 }
@@ -231,9 +343,15 @@ export default {
   min-height: 100vh;
   background: #f5f7fa;
   padding: 30px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .header-section {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 1600px;
+  box-sizing: border-box;
 }
 .products-card {
   margin-bottom: 20px;
@@ -341,5 +459,41 @@ export default {
 }
 .stat-value.revenue {
   color: #67c23a;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 20px 0;
+}
+.main-content {
+  width: 100%;
+  max-width: 1600px;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+.sales-forecast-card {
+  max-width: 100%;
+  margin: 0 auto 30px auto;
+  box-sizing: border-box;
+  /* 跟随主内容区宽度 */
+  width: 100%;
+  max-width: 1600px;
+  margin-bottom: 30px;
+}
+.sales-forecast-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 18px;
+}
+.sales-forecast-content {
+  min-height: 80px;
+  color: #c0c4cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style> 

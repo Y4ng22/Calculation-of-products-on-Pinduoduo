@@ -74,7 +74,7 @@
             </div>
           </div>
 
-          <div class="feature-card">
+          <div class="feature-card" @click="navigateToProducts">
             <div class="feature-icon">
               <el-icon><Shop /></el-icon>
             </div>
@@ -160,6 +160,17 @@
             <el-icon class="action-arrow"><ArrowRight /></el-icon>
           </div>
 
+          <div class="action-card" @click="navigateToProducts">
+            <div class="action-icon">
+              <el-icon><Shop /></el-icon>
+            </div>
+            <div class="action-content">
+              <h3>商品管理</h3>
+              <p>查看和管理商品信息</p>
+            </div>
+            <el-icon class="action-arrow"><ArrowRight /></el-icon>
+          </div>
+
           <div class="action-card" @click="downloadTemplate">
             <div class="action-icon">
               <el-icon><Download /></el-icon>
@@ -204,7 +215,7 @@
         </div>
         
         <div class="stats-grid">
-          <div class="stat-card" v-loading="statsLoading">
+          <div class="stat-card" v-loading="statsLoading" @click="navigateToProducts" style="cursor: pointer;">
             <div class="stat-icon">
               <el-icon><Shop /></el-icon>
             </div>
@@ -386,7 +397,7 @@ export default {
     async fetchPlatformStats() {
       this.statsLoading = true
       try {
-        const response = await axios.get('http://localhost:8089/api/database/stats')
+        const response = await axios.get('/api/database/stats')
         if (response.data.code === 1) {
           const data = response.data.data
           this.stats = {
@@ -430,6 +441,10 @@ export default {
     
     navigateToMetadata() {
       this.$router.push('/metadata')
+    },
+    
+    navigateToProducts() {
+      this.$router.push('/products')
     },
     
     downloadTemplate() {

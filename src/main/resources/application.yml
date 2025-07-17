@@ -5,9 +5,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/pddweb?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
-    username: root
-    password: Gepoint
+    url: jdbc:mysql://160.202.227.209:3306/pddweb?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+    username: admin
+    password: 20031216Yxz
     driver-class-name: com.mysql.cj.jdbc.Driver
   mvc:
     pathmatch:
