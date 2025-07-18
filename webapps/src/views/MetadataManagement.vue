@@ -6,6 +6,10 @@
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-bold text-gray-900">元数据管理</h1>
           <div class="flex items-center space-x-4">
+            <button @click="openCreateTableModal" class="px-4 py-2 bg-green-500 text-white rounded-button hover:bg-green-600 flex items-center space-x-2">
+              <i class="fas fa-plus"></i>
+              <span>新建表</span>
+            </button>
             <button @click="testConnection" class="px-4 py-2 bg-yellow-500 text-white rounded-button hover:bg-yellow-600 flex items-center space-x-2">
               <i class="fas fa-plug"></i>
               <span>测试连接</span>
@@ -166,6 +170,125 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- 新建表模态框 -->
+      <div v-if="showCreateTableModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+          <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900">新建数据库表</h3>
+              <button @click="closeCreateTableModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <form @submit.prevent="createTable" class="space-y-6">
+              <!-- 表基本信息 -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-2">
+                  <label class="text-sm font-medium text-gray-700">表名</label>
+                  <input v-model="newTable.tableName" type="text" class="px-3 py-2 border border-gray-300 rounded-md" required placeholder="如: user_info" />
+                </div>
+                <div class="grid grid-cols-1 gap-2">
+                  <label class="text-sm font-medium text-gray-700">表描述</label>
+                  <input v-model="newTable.description" type="text" class="px-3 py-2 border border-gray-300 rounded-md" placeholder="如: 用户信息表" />
+                </div>
+              </div>
+              
+              <!-- 字段定义 -->
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="text-md font-medium text-gray-900">字段定义</h4>
+                  <button type="button" @click="addField" class="px-3 py-1 bg-blue-500 text-white rounded-button hover:bg-blue-600 flex items-center space-x-1">
+                    <i class="fas fa-plus"></i>
+                    <span>添加字段</span>
+                  </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                  <table class="w-full border border-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">字段名</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">类型</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">长度</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">是否为空</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">键</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">默认值</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">额外</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                      <tr v-for="(field, index) in newTable.fields" :key="index" class="hover:bg-gray-50">
+                        <td class="px-3 py-2">
+                          <input v-model="field.Field" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required placeholder="字段名" />
+                        </td>
+                        <td class="px-3 py-2">
+                          <select v-model="field.Type" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" required>
+                            <option value="">选择类型</option>
+                            <option value="int">int</option>
+                            <option value="bigint">bigint</option>
+                            <option value="varchar">varchar</option>
+                            <option value="text">text</option>
+                            <option value="datetime">datetime</option>
+                            <option value="date">date</option>
+                            <option value="decimal">decimal</option>
+                            <option value="boolean">boolean</option>
+                            <option value="json">json</option>
+                          </select>
+                        </td>
+                        <td class="px-3 py-2">
+                          <input v-model="field.Length" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="如: 255" />
+                        </td>
+                        <td class="px-3 py-2">
+                          <select v-model="field.Null" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            <option value="YES">允许</option>
+                            <option value="NO">不允许</option>
+                          </select>
+                        </td>
+                        <td class="px-3 py-2">
+                          <select v-model="field.Key" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            <option value="">无</option>
+                            <option value="PRI">主键</option>
+                            <option value="UNI">唯一</option>
+                            <option value="MUL">索引</option>
+                          </select>
+                        </td>
+                        <td class="px-3 py-2">
+                          <input v-model="field.Default" type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="默认值" />
+                        </td>
+                        <td class="px-3 py-2">
+                          <select v-model="field.Extra" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            <option value="">无</option>
+                            <option value="auto_increment">自增</option>
+                            <option value="on update CURRENT_TIMESTAMP">更新时间戳</option>
+                          </select>
+                        </td>
+                        <td class="px-3 py-2">
+                          <button type="button" @click="removeField(index)" class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50" title="删除字段">
+                            <i class="fas fa-trash text-sm"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div class="flex items-center justify-end space-x-3 pt-4">
+                <button type="button" @click="closeCreateTableModal" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                  取消
+                </button>
+                <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                  创建表
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -574,6 +697,13 @@ export default {
       showDeleteColumnModal: false,
       pendingDeleteColumn: null,
       pendingDeleteColumnIndex: null,
+      // 新建表相关
+      showCreateTableModal: false,
+      newTable: {
+        tableName: '',
+        description: '',
+        fields: []
+      }
     }
   },
   computed: {
@@ -1080,6 +1210,72 @@ export default {
         ElMessage.error(error.message);
       }
     },
+
+    openCreateTableModal() {
+      this.newTable = {
+        tableName: '',
+        description: '',
+        fields: []
+      };
+      this.showCreateTableModal = true;
+    },
+    closeCreateTableModal() {
+      this.showCreateTableModal = false;
+      this.newTable = {
+        tableName: '',
+        description: '',
+        fields: []
+      };
+    },
+    addField() {
+      this.newTable.fields.push({
+        Field: '',
+        Type: '',
+        Length: '',
+        Null: 'YES',
+        Key: '',
+        Default: '',
+        Extra: ''
+      });
+    },
+    removeField(index) {
+      this.newTable.fields.splice(index, 1);
+    },
+    async createTable() {
+      if (!this.newTable.tableName) {
+        ElMessage.error('请输入表名');
+        return;
+      }
+
+      this.dataLoading = true;
+      try {
+        const response = await fetch('/api/database/table/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.newTable)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.code === 1) {
+          this.tables.push(result.data); // 添加到列表
+          this.totalTables = this.tables.length; // 更新总数
+          this.closeCreateTableModal();
+          ElMessage.success(`表创建成功: ${this.newTable.tableName}`);
+          this.loadTables(); // 刷新列表
+        } else {
+          ElMessage.error(`创建表失败: ${result.msg}`);
+        }
+      } catch (error) {
+        ElMessage.error(`创建表失败: ${error.message}`);
+        console.error('创建表失败:', error);
+      } finally {
+        this.dataLoading = false;
+      }
+    }
   }
 }
 </script>

@@ -459,6 +459,45 @@ public class DatabaseController {
 
     @PostMapping("/table/{tableName}/column/delete")
     public Result<?> deleteColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
-        return databaseService.deleteColumn(tableName, (String) columnInfo.get("fieldName"));
+        return databaseService.deleteColumn(tableName, columnInfo);
+    }
+
+    /**
+     * 创建新表
+     */
+    @PostMapping("/table/create")
+    public Result createTable(@RequestBody Map<String, Object> tableInfo) {
+        apiCallCount++; // 增加API调用次数
+        try {
+            String tableName = (String) tableInfo.get("tableName");
+            String description = (String) tableInfo.get("description");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> fields = (List<Map<String, Object>>) tableInfo.get("fields");
+            
+            if (tableName == null || tableName.trim().isEmpty()) {
+                return Result.error("表名不能为空");
+            }
+            
+            if (fields == null || fields.isEmpty()) {
+                return Result.error("至少需要定义一个字段");
+            }
+            
+            // 调用Service创建表
+            Map<String, Object> result = databaseService.createTable(tableName, description, fields);
+            
+            if ((Boolean) result.get("success")) {
+                Map<String, Object> responseData = new HashMap<>();
+                responseData.put("tableName", tableName);
+                responseData.put("description", description);
+                responseData.put("fields", fields);
+                responseData.put("message", "表创建成功");
+                return Result.success(responseData);
+            } else {
+                return Result.error((String) result.get("message"));
+            }
+            
+        } catch (Exception e) {
+            return Result.error("创建表失败: " + e.getMessage());
+        }
     }
 } 
