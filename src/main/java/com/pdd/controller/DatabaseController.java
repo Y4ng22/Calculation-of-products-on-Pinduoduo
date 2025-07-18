@@ -12,6 +12,11 @@ import java.util.ArrayList;
 import com.pdd.model.TransactionRecord;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.pdd.service.DatabaseService;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/api/database")
@@ -447,6 +452,25 @@ public class DatabaseController {
         }
     }
 
+    /**
+     * DeepSeek AI 代理接口
+     */
+    @PostMapping("/ai/deepseek")
+    public Result aiDeepseek(@RequestBody Map<String, Object> body) {
+        try {
+            String url = "https://api.deepseek.com/v1/chat/completions";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth("sk-e24303d80dc24193979de7b871e4a2a6");
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            return Result.success(response.getBody());
+        } catch (Exception e) {
+            return Result.error("AI代理请求失败: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/table/{tableName}/column/add")
     public Result<?> addColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
         return databaseService.addColumn(tableName, columnInfo);
@@ -459,45 +483,6 @@ public class DatabaseController {
 
     @PostMapping("/table/{tableName}/column/delete")
     public Result<?> deleteColumn(@PathVariable String tableName, @RequestBody Map<String, Object> columnInfo) {
-        return databaseService.deleteColumn(tableName, columnInfo);
-    }
-
-    /**
-     * 创建新表
-     */
-    @PostMapping("/table/create")
-    public Result createTable(@RequestBody Map<String, Object> tableInfo) {
-        apiCallCount++; // 增加API调用次数
-        try {
-            String tableName = (String) tableInfo.get("tableName");
-            String description = (String) tableInfo.get("description");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> fields = (List<Map<String, Object>>) tableInfo.get("fields");
-            
-            if (tableName == null || tableName.trim().isEmpty()) {
-                return Result.error("表名不能为空");
-            }
-            
-            if (fields == null || fields.isEmpty()) {
-                return Result.error("至少需要定义一个字段");
-            }
-            
-            // 调用Service创建表
-            Map<String, Object> result = databaseService.createTable(tableName, description, fields);
-            
-            if ((Boolean) result.get("success")) {
-                Map<String, Object> responseData = new HashMap<>();
-                responseData.put("tableName", tableName);
-                responseData.put("description", description);
-                responseData.put("fields", fields);
-                responseData.put("message", "表创建成功");
-                return Result.success(responseData);
-            } else {
-                return Result.error((String) result.get("message"));
-            }
-            
-        } catch (Exception e) {
-            return Result.error("创建表失败: " + e.getMessage());
-        }
+        return databaseService.deleteColumn(tableName, (String) columnInfo.get("fieldName"));
     }
 } 

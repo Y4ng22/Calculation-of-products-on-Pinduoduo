@@ -159,7 +159,31 @@
         </div>
       </template>
       <div class="sales-forecast-content">
-        <!-- 预测内容待添加 -->
+        <div class="forecast-inner">
+          <div class="forecast-title">AI 智能销量分析</div>
+          <el-divider style="margin: 16px 0 24px 0;" />
+          <transition name="fade">
+            <div v-if="predictError" class="forecast-error">{{ predictError }}</div>
+          </transition>
+          <transition name="fade">
+            <div v-if="displayedResult" class="forecast-result">{{ displayedResult }}</div>
+          </transition>
+          <el-input
+            type="textarea"
+            v-model="predictPrompt"
+            :rows="8"
+            class="forecast-textarea large-textarea"
+            placeholder="请输入你想让AI分析的问题，可参考：请根据以下商品的历史信息，预测未来一个月每个商品的销量，并简要说明预测依据。"
+          />
+          <div class="selected-tags-view" v-if="selectedProductIds.length > 0">
+            <div class="selected-tags-list">
+              <span v-for="item in computedProducts" :key="item.id" class="selected-tag">
+                {{ item.id + ' ' + item.name + '  商品ID：' + item.goodId }}
+              </span>
+            </div>
+          </div>
+          <el-button type="primary" :loading="predicting" @click="predictSales" class="forecast-btn">AI销量预测</el-button>
+        </div>
       </div>
     </el-card>
   </div>
@@ -179,13 +203,13 @@ export default {
       loading: false,
       productDetailVisible: false,
       selectedProduct: null,
-      selectedProducts: [],
+      selectedProducts: [], // 页面初始为空
       pagination: {
         page: 1,
         size: 10,
         total: 0
       },
-      selectedProductIds: []
+      selectedProductIds: [] // 页面初始为空
     }
   },
   mounted() {
@@ -194,7 +218,7 @@ export default {
   },
   computed: {
     computedProducts() {
-      // 只用 selectedProductIds 计算 selectedProducts
+      // 只用 selectedProductIds 计算 selectedProducts，未选中时返回全部
       return this.selectedProductIds.length > 0 ? this.allProducts.filter(item => this.selectedProductIds.includes(item.id)) : this.allProducts
     },
     totalProfit() {
@@ -224,6 +248,17 @@ export default {
         return ((this.totalProfit / this.totalCost) * 100).toFixed(2)
       }
       return '0.00'
+    },
+    selectedProductsJson() {
+      // 展示勾选商品的关键信息
+      if (this.computedProducts.length === 0) return ''
+      return JSON.stringify(this.computedProducts.map(p => ({
+        name: p.name,
+        cost: p.cost,
+        price: p.price,
+        sales: p.sales,
+        category: p.category
+      })), null, 2)
     }
   },
   methods: {
@@ -333,7 +368,70 @@ export default {
     handleCurrentChange(page) {
       this.pagination.page = page
       this.fetchProducts()
-    }
+    },
+    async predictSales() {
+      this.predicting = true
+      this.predictResult = ''
+      this.displayedResult = ''
+      this.predictError = ''
+      try {
+        // 只取勾选商品，若无勾选则传全部
+        const products = this.computedProducts.length > 0 ? this.computedProducts : this.allProducts
+        const simpleProducts = products.map(p => ({
+          name: p.name,
+          cost: p.cost,
+          price: p.price,
+          sales: p.sales,
+          category: p.category
+        }))
+        const prompt = `${this.predictPrompt}\n商品数据：${JSON.stringify(simpleProducts)}`
+        const res = await fetch('/api/database/ai/deepseek', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是一个专业的数据分析师，善于用简明中文输出分析结论。' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7
+          })
+        })
+        if (!res.ok) throw new Error('AI接口请求失败')
+        const data = await res.json()
+        if (data.code === 1 && data.data) {
+          let aiData = data.data
+          if (typeof aiData === 'string') {
+            try { aiData = JSON.parse(aiData) } catch(e) {}
+          }
+          if (aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) {
+            this.predictResult = aiData.choices[0].message.content.trim()
+            // 打字机效果
+            this.displayedResult = ''
+            let i = 0
+            const fullText = this.predictResult
+            const typeWriter = () => {
+              if (i <= fullText.length) {
+                this.displayedResult = fullText.slice(0, i)
+                i++
+                setTimeout(typeWriter, 18)
+              }
+            }
+            typeWriter()
+          } else {
+            this.predictError = 'AI未返回有效结果'
+          }
+        } else {
+          this.predictError = 'AI未返回有效结果'
+        }
+      } catch (e) {
+        this.predictError = '预测失败: ' + (e.message || e)
+      } finally {
+        this.predicting = false
+      }
+    },
   }
 }
 </script>
@@ -495,5 +593,111 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.forecast-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 24px 24px;
+  background: #fafbfc;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+}
+.forecast-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #222;
+  letter-spacing: 1px;
+  margin-bottom: 0;
+  width: 100%;
+  text-align: left;
+  align-self: flex-start;
+}
+.forecast-textarea {
+  width: 1100px;
+  margin-bottom: 18px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+.forecast-btn {
+  margin-bottom: 18px;
+  min-width: 140px;
+}
+.forecast-result {
+  background: #f4f8fb;
+  border-radius: 8px;
+  padding: 18px 16px;
+  color: #222;
+  font-size: 16px;
+  margin-top: 8px;
+  width: 100%;
+  text-align: left;
+  white-space: pre-line;
+  box-shadow: 0 1px 4px rgba(64,158,255,0.06);
+  word-break: break-all;
+}
+.forecast-error {
+  background: #fff0f0;
+  border-radius: 8px;
+  padding: 14px 12px;
+  color: #d32f2f;
+  font-size: 15px;
+  margin-top: 8px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #ffd6d6;
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+.large-textarea .el-textarea__inner {
+  font-size: 18px;
+  padding: 16px 14px;
+  min-height: 180px;
+}
+.selected-tags-view {
+  width: 100%;
+  margin: 10px 0 10px 0;
+  min-height: 32px;
+}
+.selected-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+.selected-tag {
+  display: inline-block;
+  background: #e6f0fa;
+  color: #409eff;
+  border-radius: 16px;
+  padding: 4px 14px;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 2px rgba(64,158,255,0.06);
+  border: 1px solid #b3d8fd;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 1200px) {
+  .forecast-inner {
+    max-width: 98vw;
+    padding: 18px 6px 16px 6px;
+  }
+  .forecast-title {
+    font-size: 18px;
+  }
+  .forecast-result, .forecast-error {
+    font-size: 14px;
+    padding: 10px 6px;
+  }
 }
 </style> 
