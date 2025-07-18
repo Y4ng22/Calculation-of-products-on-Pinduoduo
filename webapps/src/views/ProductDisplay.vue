@@ -209,7 +209,12 @@ export default {
         size: 10,
         total: 0
       },
-      selectedProductIds: [] // 页面初始为空
+      selectedProductIds: [], // 页面初始为空
+      predictPrompt: '立白超洁薰衣草1是一月份的数据，立白超洁薰衣草2是二月份的数据，立白超洁薰衣草3是三月份的数据，立白超洁薰衣草4是四月份的数据，请帮我分析5，6，7月份的数据', // 设置初始内容
+      predicting: false, // 新增，防止未定义警告
+      predictError: '',  // 新增，防止未定义警告
+      predictResult: '', // 新增，防止未定义警告
+      displayedResult: '', // 新增，防止未定义警告
     }
   },
   mounted() {
@@ -401,13 +406,24 @@ export default {
         })
         if (!res.ok) throw new Error('AI接口请求失败')
         const data = await res.json()
+        console.log('AI接口返回：', data) // 调试
         if (data.code === 1 && data.data) {
           let aiData = data.data
           if (typeof aiData === 'string') {
             try { aiData = JSON.parse(aiData) } catch(e) {}
           }
-          if (aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) {
-            this.predictResult = aiData.choices[0].message.content.trim()
+          console.log('AI解析后数据：', aiData) // 调试
+          // 健壮性处理
+          let content = ''
+          if (aiData && aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) {
+            content = aiData.choices[0].message.content
+          } else if (typeof aiData === 'string') {
+            content = aiData
+          } else if (aiData && aiData.content) {
+            content = aiData.content
+          }
+          if (content && typeof content === 'string') {
+            this.predictResult = content.trim()
             // 打字机效果
             this.displayedResult = ''
             let i = 0
@@ -427,6 +443,7 @@ export default {
           this.predictError = 'AI未返回有效结果'
         }
       } catch (e) {
+        console.error(e) // 调试
         this.predictError = '预测失败: ' + (e.message || e)
       } finally {
         this.predicting = false
