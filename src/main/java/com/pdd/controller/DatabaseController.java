@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.Arrays;
 import com.pdd.model.TransactionRecord;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.pdd.service.DatabaseService;
@@ -468,6 +469,45 @@ public class DatabaseController {
             return Result.success(response.getBody());
         } catch (Exception e) {
             return Result.error("AI代理请求失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 商品销量预测图表接口
+     */
+    @PostMapping("/ai/sales-forecast")
+    public Result salesForecast(@RequestBody Map<String, Object> requestData) {
+        try {
+            String url = "https://api.deepseek.com/v1/chat/completions";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth("sk-e24303d80dc24193979de7b871e4a2a6");
+            
+            // 获取前端发送的完整内容
+            String content = (String) requestData.get("content");
+            List<Map<String, Object>> products = (List<Map<String, Object>>) requestData.get("products");
+            
+            // 如果content为空，使用默认提示词
+            if (content == null || content.trim().isEmpty()) {
+                String defaultPrompt = "请根据以下商品的历史销量数据，进行深入的销量预测分析。要求：1. 详细分析每个商品的历史销量趋势和变化规律，说明变化幅度和速度；2. 深入识别影响销量的关键因素（季节性、价格策略、市场竞争、消费者偏好、营销活动等）；3. 基于数据趋势和影响因素，预测未来3个月的销量；4. 详细说明预测依据、分析方法和预测逻辑；5. 提供风险评估和不确定性分析；6. 给出具体的优化建议和业务指导。请确保分析全面、详细、有理有据，字数在500字左右。";
+                content = defaultPrompt + "\n\n商品数据：" + products.toString();
+            }
+            
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", "deepseek-chat");
+            requestBody.put("messages", Arrays.asList(
+                Map.of("role", "user", "content", content)
+            ));
+            requestBody.put("temperature", 0.8);
+            requestBody.put("max_tokens", 3000);
+            
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            
+            return Result.success(response.getBody());
+        } catch (Exception e) {
+            return Result.error("销量预测失败: " + e.getMessage());
         }
     }
 

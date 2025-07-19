@@ -161,20 +161,53 @@
       <div class="sales-forecast-content">
         <div class="forecast-inner">
           <div class="forecast-title">AI 智能销量分析</div>
+          <div class="forecast-subtitle">AI将提供详细的分析报告，包括趋势分析、影响因素、预测依据和优化建议。系统已预设专业分析模板，您可以在下方输入特殊要求进行补充。</div>
           <el-divider style="margin: 16px 0 24px 0;" />
           <transition name="fade">
             <div v-if="predictError" class="forecast-error">{{ predictError }}</div>
           </transition>
           <transition name="fade">
-            <div v-if="displayedResult" class="forecast-result">{{ displayedResult }}</div>
+            <div v-if="displayedResult" class="forecast-result">
+              <div class="result-header">
+                <span class="word-count">字数：{{ displayedResult.length }}</span>
+              </div>
+              <div class="result-content">{{ displayedResult }}</div>
+            </div>
           </transition>
-          <el-input
-            type="textarea"
-            v-model="predictPrompt"
-            :rows="8"
-            class="forecast-textarea large-textarea"
-            placeholder="请输入你想让AI分析的问题，可参考：请根据以下商品的历史信息，预测未来一个月每个商品的销量，并简要说明预测依据。"
-          />
+          
+          <!-- 折线图显示区域 -->
+          <transition name="fade">
+            <div v-if="showChart && chartData" class="chart-container">
+              <div class="chart-title">销量预测趋势图</div>
+              <div class="chart-wrapper">
+                <v-chart 
+                  :option="chartOption" 
+                  :style="{ width: '100%', height: '400px' }"
+                  autoresize
+                />
+              </div>
+            </div>
+          </transition>
+          
+          <div class="input-section">
+            <div class="input-header">
+              <el-input
+                type="textarea"
+                v-model="predictPrompt"
+                :rows="4"
+                class="forecast-textarea large-textarea"
+                placeholder="请输入特殊要求（可选，系统将结合预设分析模板）"
+              />
+              <el-button 
+                type="info" 
+                size="small"
+                @click="showHistory"
+                class="history-btn"
+              >
+                历史记录
+              </el-button>
+            </div>
+          </div>
           <div class="selected-tags-view" v-if="selectedProductIds.length > 0">
             <div class="selected-tags-list">
               <span v-for="item in computedProducts" :key="item.id" class="selected-tag">
@@ -182,20 +215,128 @@
               </span>
             </div>
           </div>
-          <el-button type="primary" :loading="predicting" @click="predictSales" class="forecast-btn">AI销量预测</el-button>
+          <el-button type="primary" :loading="predicting" @click="predictSales" class="forecast-btn">
+            {{ predicting ? 'AI正在生成详细分析...' : 'AI销量预测' }}
+          </el-button>
         </div>
       </div>
     </el-card>
   </div>
+  
+  <!-- 历史记录对话框 -->
+  <el-dialog 
+    v-model="historyVisible" 
+    title="历史记录" 
+    width="900px"
+    :before-close="handleCloseHistory"
+  >
+    <div class="history-container">
+      <div class="history-list">
+        <div 
+          v-for="(record, index) in historyRecords" 
+          :key="index"
+          class="history-item"
+          :class="{ 'active': selectedHistory === record }"
+        >
+          <div class="history-content" @click="selectHistory(record)">
+            <div class="history-header">
+              <span class="history-time">{{ formatTime(record.timestamp) }}</span>
+              <span class="history-products">商品数：{{ record.productsCount }}</span>
+            </div>
+            <div class="history-prompt">{{ record.prompt || '无特殊要求' }}</div>
+            <div class="history-summary">{{ record.summary }}</div>
+          </div>
+          <div class="history-actions">
+            <el-button 
+              type="danger" 
+              size="small" 
+              circle
+              @click.stop="deleteHistoryRecord(index)"
+              class="delete-btn"
+            >
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="selectedHistory" class="history-detail">
+        <div class="detail-header">
+          <h4>详细信息</h4>
+          <el-button 
+            type="primary" 
+            size="small"
+            @click="loadHistoryToForm"
+          >
+            加载到表单
+          </el-button>
+        </div>
+        <div class="detail-content">
+          <div class="detail-section">
+            <h5>用户输入：</h5>
+            <p>{{ selectedHistory.prompt || '无特殊要求' }}</p>
+          </div>
+          <div class="detail-section">
+            <h5>分析结果：</h5>
+            <div class="result-content">{{ selectedHistory.result }}</div>
+          </div>
+          <div v-if="selectedHistory.chartData" class="detail-section">
+            <h5>图表数据：</h5>
+            <div class="chart-wrapper">
+              <v-chart 
+                :option="getHistoryChartOption(selectedHistory.chartData)" 
+                :style="{ width: '100%', height: '300px' }"
+                autoresize
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="handleCloseHistory">关闭</el-button>
+        <el-button 
+          type="danger" 
+          @click="clearHistory"
+          :disabled="historyRecords.length === 0"
+        >
+          清空历史
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
-import { Shop, Picture } from '@element-plus/icons-vue'
+import { Shop, Picture, Delete } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components'
+
+use([
+  CanvasRenderer,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+])
+
 export default {
   name: 'ProductDisplay',
-  components: { Shop, Picture },
+  components: { Shop, Picture, Delete, VChart },
   data() {
     return {
       products: [],
@@ -210,16 +351,24 @@ export default {
         total: 0
       },
       selectedProductIds: [], // 页面初始为空
-      predictPrompt: '立白超洁薰衣草1是一月份的数据，立白超洁薰衣草2是二月份的数据，立白超洁薰衣草3是三月份的数据，立白超洁薰衣草4是四月份的数据，请帮我分析5，6，7月份的数据', // 设置初始内容
+      predictPrompt: '', // 用户输入的提示词
+      defaultPrompt: '请根据以下商品的历史销量数据，进行深入的销量预测分析。要求：1. 详细分析每个商品的历史销量趋势和变化规律，说明变化幅度和速度；2. 深入识别影响销量的关键因素（季节性、价格策略、市场竞争、消费者偏好、营销活动等）；3. 基于数据趋势和影响因素，预测未来3个月的销量；4. 详细说明预测依据、分析方法和预测逻辑；5. 提供风险评估和不确定性分析；6. 给出具体的优化建议和业务指导。请确保分析全面、详细、有理有据，字数在500字左右。', // 预设的提示词
       predicting: false, // 新增，防止未定义警告
       predictError: '',  // 新增，防止未定义警告
       predictResult: '', // 新增，防止未定义警告
       displayedResult: '', // 新增，防止未定义警告
+      chartData: null, // 新增：存储图表数据
+      showChart: false, // 新增：控制图表显示
+      // 历史记录相关
+      historyRecords: [], // 存储历史记录
+      historyVisible: false, // 控制历史记录对话框显示
+      selectedHistory: null, // 当前选中的历史记录
     }
   },
   mounted() {
     this.fetchProducts()
     this.fetchAllProducts()
+    this.loadHistoryRecords()
   },
   computed: {
     computedProducts() {
@@ -264,6 +413,69 @@ export default {
         sales: p.sales,
         category: p.category
       })), null, 2)
+    },
+    chartOption() {
+      if (!this.chartData) return {}
+      
+      return {
+        title: {
+          text: '商品销量预测趋势',
+          left: 'center',
+          textStyle: {
+            fontSize: 16,
+            fontWeight: 'bold'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross'
+          }
+        },
+        legend: {
+          data: this.chartData.series.map(item => item.name),
+          bottom: 10
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          top: '15%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: this.chartData.xAxis,
+          axisLabel: {
+            rotate: 0
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: '销量/利润（元）',
+          axisLabel: {
+            formatter: '{value}'
+          }
+        },
+        series: this.chartData.series.map(item => ({
+          name: item.name,
+          type: 'line',
+          data: item.data,
+          smooth: true,
+          lineStyle: {
+            width: 3
+          },
+          itemStyle: {
+            borderWidth: 2
+          },
+          markPoint: {
+            data: [
+              { type: 'max', name: '最大值' },
+              { type: 'min', name: '最小值' }
+            ]
+          }
+        }))
+      }
     }
   },
   methods: {
@@ -379,6 +591,8 @@ export default {
       this.predictResult = ''
       this.displayedResult = ''
       this.predictError = ''
+      this.chartData = null
+      this.showChart = false
       try {
         // 只取勾选商品，若无勾选则传全部
         const products = this.computedProducts.length > 0 ? this.computedProducts : this.allProducts
@@ -389,19 +603,42 @@ export default {
           sales: p.sales,
           category: p.category
         }))
-        const prompt = `${this.predictPrompt}\n商品数据：${JSON.stringify(simpleProducts)}`
-        const res = await fetch('/api/database/ai/deepseek', {
+        // 构建完整的提示词内容，包含后端的完整提示词
+        const fullContent = `你是一个专业的数据分析师，专门进行商品销量预测和趋势分析。你的分析必须详细、全面、有理有据。请按照以下要求进行分析：${this.defaultPrompt}
+
+${this.predictPrompt ? '用户特殊要求：' + this.predictPrompt + '\n\n' : ''}商品数据：${JSON.stringify(simpleProducts, null, 2)}
+
+分析要求（必须详细回答）：
+1. 历史趋势分析：详细分析每个商品的历史销量变化趋势，识别增长、下降或稳定模式，说明变化幅度和速度
+2. 影响因素分析：深入分析可能影响销量的因素，包括季节性变化、价格波动、市场竞争、消费者行为、营销活动、产品生命周期等
+3. 预测方法说明：详细说明使用的预测方法（如趋势外推、回归分析、时间序列分析、机器学习模型等）及其适用性
+4. 具体预测：给出未来的具体预测数值，详细解释每个月的预测理由和依据
+5. 风险评估：分析预测的不确定性、潜在风险、外部因素影响等
+6. 优化建议：基于分析结果提供具体的改进建议，包括定价策略、营销策略、库存管理等
+7. 数据解读：对预测结果进行深入解读，说明对业务决策的指导意义
+
+请按照以下JSON格式返回结果（根据具体情况做出改变）：
+{
+  "analysis": "请提供详细的分析结论，包含以下内容：1. 历史销量趋势分析或者利润分析（二选一，按照特殊需求）（详细说明每个商品的变化模式）；2. 影响销量的关键因素分析（季节性、价格变化、市场竞争、消费者行为等）；3. 预测依据和方法详细说明；4. 未来的具体预测数值及详细理由；5. 风险评估和不确定性分析；6. 具体的优化建议和业务指导。分析要具体、详细、有理有据。",
+  "chartData": {
+    "xAxis": ["1月", "2月", "3月", "4月", "5月", "6月", "7月"],
+    "series": [
+      {
+        "name": "商品名称",
+        "data": [历史销量1, 历史销量2, 历史销量3, 历史销量4, 预测销量5, 预测销量6, 预测销量7]
+      }
+    ]
+  }
+}`
+        
+        const res = await fetch('/api/database/ai/sales-forecast', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: '你是一个专业的数据分析师，善于用简明中文输出分析结论。' },
-              { role: 'user', content: prompt }
-            ],
-            temperature: 0.7
+            content: fullContent,
+            products: simpleProducts
           })
         })
         if (!res.ok) throw new Error('AI接口请求失败')
@@ -424,6 +661,23 @@ export default {
           }
           if (content && typeof content === 'string') {
             this.predictResult = content.trim()
+            
+            // 尝试解析JSON格式的图表数据
+            try {
+              // 查找JSON格式的数据
+              const jsonMatch = content.match(/\{[\s\S]*\}/)
+              if (jsonMatch) {
+                const parsedData = JSON.parse(jsonMatch[0])
+                if (parsedData.chartData && parsedData.analysis) {
+                  this.chartData = parsedData.chartData
+                  this.predictResult = parsedData.analysis
+                  this.showChart = true
+                }
+              }
+            } catch (jsonError) {
+              console.log('JSON解析失败，显示文本结果：', jsonError)
+            }
+            
             // 打字机效果
             this.displayedResult = ''
             let i = 0
@@ -436,6 +690,9 @@ export default {
               }
             }
             typeWriter()
+            
+            // 保存历史记录
+            this.saveHistoryRecord(simpleProducts)
           } else {
             this.predictError = 'AI未返回有效结果'
           }
@@ -449,6 +706,170 @@ export default {
         this.predicting = false
       }
     },
+    
+    // 历史记录相关方法
+    loadHistoryRecords() {
+      try {
+        const history = localStorage.getItem('salesForecastHistory')
+        this.historyRecords = history ? JSON.parse(history) : []
+      } catch (e) {
+        console.error('加载历史记录失败:', e)
+        this.historyRecords = []
+      }
+    },
+    
+    saveHistoryRecord(products) {
+      try {
+        const record = {
+          timestamp: new Date().toISOString(),
+          prompt: this.predictPrompt,
+          productsCount: products.length,
+          result: this.predictResult,
+          chartData: this.chartData,
+          summary: this.predictResult.substring(0, 100) + '...'
+        }
+        
+        this.historyRecords.unshift(record) // 添加到开头
+        
+        // 只保留最近50条记录
+        if (this.historyRecords.length > 50) {
+          this.historyRecords = this.historyRecords.slice(0, 50)
+        }
+        
+        localStorage.setItem('salesForecastHistory', JSON.stringify(this.historyRecords))
+      } catch (e) {
+        console.error('保存历史记录失败:', e)
+      }
+    },
+    
+    showHistory() {
+      this.historyVisible = true
+      this.selectedHistory = null
+    },
+    
+    handleCloseHistory() {
+      this.historyVisible = false
+      this.selectedHistory = null
+    },
+    
+    selectHistory(record) {
+      this.selectedHistory = record
+    },
+    
+    loadHistoryToForm() {
+      if (this.selectedHistory) {
+        this.predictPrompt = this.selectedHistory.prompt || ''
+        this.historyVisible = false
+        ElMessage({
+          message: '已加载历史记录到表单',
+          type: 'success'
+        })
+      }
+    },
+    
+    deleteHistoryRecord(index) {
+      this.$confirm('确定要删除这条历史记录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        // 如果删除的是当前选中的记录，清空选中状态
+        if (this.selectedHistory === this.historyRecords[index]) {
+          this.selectedHistory = null
+        }
+        
+        this.historyRecords.splice(index, 1)
+        localStorage.setItem('salesForecastHistory', JSON.stringify(this.historyRecords))
+        
+        ElMessage({
+          message: '历史记录已删除',
+          type: 'success'
+        })
+      }).catch(() => {})
+    },
+    
+    clearHistory() {
+      this.$confirm('确定要清空所有历史记录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.historyRecords = []
+        localStorage.removeItem('salesForecastHistory')
+        this.selectedHistory = null
+        ElMessage({
+          message: '历史记录已清空',
+          type: 'success'
+        })
+      }).catch(() => {})
+    },
+    
+    formatTime(timestamp) {
+      const date = new Date(timestamp)
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    },
+    
+    getHistoryChartOption(chartData) {
+      return {
+        title: {
+          text: '历史预测趋势图',
+          left: 'center',
+          textStyle: {
+            fontSize: 14,
+            fontWeight: 'bold'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross'
+          }
+        },
+        legend: {
+          data: chartData.series.map(item => item.name),
+          bottom: 10
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          top: '15%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: chartData.xAxis,
+          axisLabel: {
+            rotate: 0
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: '销量',
+          axisLabel: {
+            formatter: '{value}'
+          }
+        },
+        series: chartData.series.map(item => ({
+          name: item.name,
+          type: 'line',
+          data: item.data,
+          smooth: true,
+          lineStyle: {
+            width: 2
+          },
+          itemStyle: {
+            borderWidth: 1
+          }
+        }))
+      }
+    }
   }
 }
 </script>
@@ -626,18 +1047,40 @@ export default {
   font-weight: 700;
   color: #222;
   letter-spacing: 1px;
+  margin-bottom: 8px;
+  width: 100%;
+  text-align: left;
+  align-self: flex-start;
+}
+
+.forecast-subtitle {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
   margin-bottom: 0;
   width: 100%;
   text-align: left;
   align-self: flex-start;
 }
+.input-section {
+  width: 100%;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .forecast-textarea {
   width: 1100px;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
   margin-left: auto;
   margin-right: auto;
   display: block;
 }
+
+
+
+
 .forecast-btn {
   margin-bottom: 18px;
   min-width: 140px;
@@ -645,15 +1088,34 @@ export default {
 .forecast-result {
   background: #f4f8fb;
   border-radius: 8px;
-  padding: 18px 16px;
+  padding: 0;
   color: #222;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.6;
   margin-top: 8px;
   width: 100%;
   text-align: left;
   white-space: pre-line;
   box-shadow: 0 1px 4px rgba(64,158,255,0.06);
-  word-break: break-all;
+  word-break: break-word;
+}
+
+.result-header {
+  background: #e8f4fd;
+  padding: 8px 18px;
+  border-bottom: 1px solid #d1e7dd;
+  border-radius: 8px 8px 0 0;
+}
+
+.word-count {
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.result-content {
+  padding: 20px 18px;
+  line-height: 1.7;
 }
 .forecast-error {
   background: #fff0f0;
@@ -704,6 +1166,30 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.chart-container {
+  margin: 20px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid #e8eaed;
+}
+
+.chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.chart-wrapper {
+  background: #fafbfc;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e8eaed;
+}
 @media (max-width: 1200px) {
   .forecast-inner {
     max-width: 98vw;
@@ -716,5 +1202,184 @@ export default {
     font-size: 14px;
     padding: 10px 6px;
   }
+}
+
+/* 历史记录相关样式 */
+.input-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.history-btn {
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.history-container {
+  display: flex;
+  gap: 20px;
+  height: 500px;
+}
+
+.history-list {
+  width: 300px;
+  border-right: 1px solid #e4e7ed;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.history-item {
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  transition: all 0.3s;
+  background: #fff;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.history-content {
+  flex: 1;
+  cursor: pointer;
+}
+
+.history-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64,158,255,0.1);
+}
+
+.history-item.active {
+  border-color: #409eff;
+  background: #f0f9ff;
+  box-shadow: 0 2px 8px rgba(64,158,255,0.15);
+}
+
+.history-actions {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.history-item:hover .history-actions {
+  opacity: 1;
+}
+
+.delete-btn {
+  padding: 4px;
+  font-size: 12px;
+}
+
+.delete-btn:hover {
+  background-color: #f56c6c;
+  color: white;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.history-products {
+  font-size: 12px;
+  color: #409eff;
+  background: #e6f0fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.history-prompt {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  max-height: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.history-summary {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.3;
+  max-height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.history-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding-left: 10px;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.detail-header h4 {
+  margin: 0;
+  color: #303133;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section h5 {
+  margin: 0 0 8px 0;
+  color: #606266;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.detail-section p {
+  margin: 0;
+  color: #303133;
+  line-height: 1.5;
+  background: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+}
+
+.detail-section .result-content {
+  background: #f4f8fb;
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid #e8f4fd;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-section .chart-wrapper {
+  background: #fafbfc;
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid #e8eaed;
 }
 </style> 
