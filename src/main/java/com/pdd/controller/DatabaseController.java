@@ -18,6 +18,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.OutputStreamWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/database")
@@ -473,42 +483,135 @@ public class DatabaseController {
     }
 
     /**
-     * 商品销量预测图表接口
+     * 商品销量预测图表接口 - 流式输出
      */
     @PostMapping("/ai/sales-forecast")
-    public Result salesForecast(@RequestBody Map<String, Object> requestData) {
-        try {
-            String url = "https://api.deepseek.com/v1/chat/completions";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth("sk-e24303d80dc24193979de7b871e4a2a6");
-            
-            // 获取前端发送的完整内容
-            String content = (String) requestData.get("content");
-            List<Map<String, Object>> products = (List<Map<String, Object>>) requestData.get("products");
-            
-            // 如果content为空，使用默认提示词
-            if (content == null || content.trim().isEmpty()) {
-                String defaultPrompt = "请根据以下商品的历史销量数据，进行深入的销量预测分析。要求：1. 详细分析每个商品的历史销量趋势和变化规律，说明变化幅度和速度；2. 深入识别影响销量的关键因素（季节性、价格策略、市场竞争、消费者偏好、营销活动等）；3. 基于数据趋势和影响因素，预测未来3个月的销量；4. 详细说明预测依据、分析方法和预测逻辑；5. 提供风险评估和不确定性分析；6. 给出具体的优化建议和业务指导。请确保分析全面、详细、有理有据，字数在500字左右。";
-                content = defaultPrompt + "\n\n商品数据：" + products.toString();
+    public ResponseEntity<ResponseBodyEmitter> salesForecast(@RequestBody Map<String, Object> requestData) {
+        ResponseBodyEmitter emitter = new ResponseBodyEmitter(Long.MAX_VALUE);
+        
+        // 设置响应头支持流式输出
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "text/plain;charset=UTF-8");
+        headers.set("Cache-Control", "no-cache");
+        headers.set("Connection", "keep-alive");
+        headers.set("Access-Control-Allow-Origin", "*");
+        headers.set("Access-Control-Allow-Headers", "Content-Type");
+        headers.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        
+        // 异步处理AI请求
+        CompletableFuture.runAsync(() -> {
+            try {
+                String url = "https://api.deepseek.com/v1/chat/completions";
+                
+                // 获取前端发送的完整内容
+                String content = (String) requestData.get("content");
+                List<Map<String, Object>> products = (List<Map<String, Object>>) requestData.get("products");
+                
+                // 如果content为空，使用默认提示词
+                if (content == null || content.trim().isEmpty()) {
+                    String defaultPrompt = "请根据以下商品的历史销量数据，进行深入的销量预测分析。要求：1. 详细分析每个商品的历史销量趋势和变化规律，说明变化幅度和速度；2. 深入识别影响销量的关键因素（季节性、价格策略、市场竞争、消费者偏好、营销活动等）；3. 基于数据趋势和影响因素，预测未来3个月的销量；4. 详细说明预测依据、分析方法和预测逻辑；5. 提供风险评估和不确定性分析；6. 给出具体的优化建议和业务指导。请确保分析全面、详细、有理有据，字数在500字左右。";
+                    content = defaultPrompt + "\n\n商品数据：" + products.toString();
+                }
+                
+                // 构建DeepSeek API请求体，启用流式输出
+                Map<String, Object> message = new HashMap<>();
+                message.put("role", "user");
+                message.put("content", content);
+                
+                List<Map<String, Object>> messages = new ArrayList<>();
+                messages.add(message);
+                
+                Map<String, Object> requestBody = new HashMap<>();
+                requestBody.put("model", "deepseek-chat");
+                requestBody.put("messages", messages);
+                requestBody.put("temperature", 0.8);
+                requestBody.put("max_tokens", 3000);
+                requestBody.put("stream", true); // 启用流式输出
+                
+                // 使用HttpURLConnection进行流式请求
+                URL apiUrl = new URL(url);
+                HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                connection.setRequestProperty("Authorization", "Bearer sk-e24303d80dc24193979de7b871e4a2a6");
+                connection.setRequestProperty("Accept", "text/event-stream");
+                connection.setDoOutput(true);
+                connection.setDoInput(true);
+                
+                // 发送请求体
+                ObjectMapper objectMapper = new ObjectMapper();
+                String jsonRequestBody = objectMapper.writeValueAsString(requestBody);
+                System.out.println("Request body: " + jsonRequestBody); // 调试信息
+                
+                try (OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream(), "UTF-8")) {
+                    writer.write(jsonRequestBody);
+                    writer.flush();
+                }
+                
+                // 检查响应状态
+                int responseCode = connection.getResponseCode();
+                System.out.println("Response code: " + responseCode); // 调试信息
+                
+                if (responseCode != 200) {
+                    // 读取错误响应
+                    BufferedReader errorReader = new BufferedReader(new InputStreamReader(connection.getErrorStream(), "UTF-8"));
+                    StringBuilder errorResponse = new StringBuilder();
+                    String errorLine;
+                    while ((errorLine = errorReader.readLine()) != null) {
+                        errorResponse.append(errorLine);
+                    }
+                    errorReader.close();
+                    System.out.println("Error response: " + errorResponse.toString()); // 调试信息
+                    throw new RuntimeException("API request failed with code " + responseCode + ": " + errorResponse.toString());
+                }
+                
+                // 读取流式响应
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                    String line;
+                    StringBuilder completeContent = new StringBuilder();
+                    
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("data: ")) {
+                            String data = line.substring(6);
+                            if ("[DONE]".equals(data)) {
+                                break;
+                            }
+                            
+                            try {
+                                JsonNode jsonNode = objectMapper.readTree(data);
+                                JsonNode choices = jsonNode.get("choices");
+                                if (choices != null && choices.isArray() && choices.size() > 0) {
+                                    JsonNode delta = choices.get(0).get("delta");
+                                    if (delta != null && delta.has("content")) {
+                                        String deltaContent = delta.get("content").asText();
+                                        completeContent.append(deltaContent);
+                                        
+                                        // 发送流式数据到前端，确保UTF-8编码
+                                        emitter.send(deltaContent, MediaType.TEXT_PLAIN);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                // 忽略解析错误，继续处理下一行
+                            }
+                        }
+                    }
+                    
+                    // 发送完成信号
+                    emitter.send("\n[STREAM_END]", MediaType.TEXT_PLAIN);
+                    emitter.complete();
+                }
+                
+            } catch (Exception e) {
+                try {
+                    emitter.send("error: 销量预测失败: " + e.getMessage(), MediaType.TEXT_PLAIN);
+                    emitter.completeWithError(e);
+                } catch (IOException ioException) {
+                    emitter.completeWithError(ioException);
+                }
             }
-            
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "deepseek-chat");
-            requestBody.put("messages", Arrays.asList(
-                Map.of("role", "user", "content", content)
-            ));
-            requestBody.put("temperature", 0.8);
-            requestBody.put("max_tokens", 3000);
-            
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-            
-            return Result.success(response.getBody());
-        } catch (Exception e) {
-            return Result.error("销量预测失败: " + e.getMessage());
-        }
+        });
+        
+        return ResponseEntity.ok().headers(headers).body(emitter);
     }
 
     @PostMapping("/table/{tableName}/column/add")

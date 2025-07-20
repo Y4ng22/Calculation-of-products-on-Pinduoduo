@@ -191,13 +191,13 @@
           
           <div class="input-section">
             <div class="input-header">
-              <el-input
-                type="textarea"
-                v-model="predictPrompt"
+          <el-input
+            type="textarea"
+            v-model="predictPrompt"
                 :rows="4"
-                class="forecast-textarea large-textarea"
+            class="forecast-textarea large-textarea"
                 placeholder="请输入特殊要求（可选，系统将结合预设分析模板）"
-              />
+          />
               <el-button 
                 type="info" 
                 size="small"
@@ -593,6 +593,7 @@ export default {
       this.predictError = ''
       this.chartData = null
       this.showChart = false
+      
       try {
         // 只取勾选商品，若无勾选则传全部
         const products = this.computedProducts.length > 0 ? this.computedProducts : this.allProducts
@@ -603,6 +604,7 @@ export default {
           sales: p.sales,
           category: p.category
         }))
+        
         // 构建完整的提示词内容，包含后端的完整提示词
         const fullContent = `你是一个专业的数据分析师，专门进行商品销量预测和趋势分析。你的分析必须详细、全面、有理有据。请按照以下要求进行分析：${this.defaultPrompt}
 
@@ -617,21 +619,32 @@ ${this.predictPrompt ? '用户特殊要求：' + this.predictPrompt + '\n\n' : '
 6. 优化建议：基于分析结果提供具体的改进建议，包括定价策略、营销策略、库存管理等
 7. 数据解读：对预测结果进行深入解读，说明对业务决策的指导意义
 
-请按照以下JSON格式返回结果（根据具体情况做出改变）：
+重要格式要求：
+1. 请先提供详细的文字分析
+2. 在分析的最后，请务必提供图表数据，严格按照以下格式：
+
+[CHART_DATA_START]
 {
-  "analysis": "请提供详细的分析结论，包含以下内容：1. 历史销量趋势分析或者利润分析（二选一，按照特殊需求）（详细说明每个商品的变化模式）；2. 影响销量的关键因素分析（季节性、价格变化、市场竞争、消费者行为等）；3. 预测依据和方法详细说明；4. 未来的具体预测数值及详细理由；5. 风险评估和不确定性分析；6. 具体的优化建议和业务指导。分析要具体、详细、有理有据。",
   "chartData": {
-    "xAxis": ["1月", "2月", "3月", "4月", "5月", "6月", "7月"],
+    "xAxis": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月"],
     "series": [
       {
-        "name": "商品名称",
-        "data": [历史销量1, 历史销量2, 历史销量3, 历史销量4, 预测销量5, 预测销量6, 预测销量7]
+        "name": "商品A销量",
+        "data": [120, 150, 180, 160, 200, 220, 250, 280, 300]
+      },
+      {
+        "name": "商品B销量", 
+        "data": [80, 90, 100, 95, 110, 125, 140, 155, 170]
       }
     ]
   }
-}`
+}
+[CHART_DATA_END]
+
+注意：图表数据必须包含真实的数字，不要使用"历史销量1"这样的占位符。`
         
-        const res = await fetch('/api/database/ai/sales-forecast', {
+        // 使用fetch进行流式请求
+        const response = await fetch('/api/database/ai/sales-forecast', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -641,66 +654,86 @@ ${this.predictPrompt ? '用户特殊要求：' + this.predictPrompt + '\n\n' : '
             products: simpleProducts
           })
         })
-        if (!res.ok) throw new Error('AI接口请求失败')
-        const data = await res.json()
-        console.log('AI接口返回：', data) // 调试
-        if (data.code === 1 && data.data) {
-          let aiData = data.data
-          if (typeof aiData === 'string') {
-            try { aiData = JSON.parse(aiData) } catch(e) {}
-          }
-          console.log('AI解析后数据：', aiData) // 调试
-          // 健壮性处理
-          let content = ''
-          if (aiData && aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) {
-            content = aiData.choices[0].message.content
-          } else if (typeof aiData === 'string') {
-            content = aiData
-          } else if (aiData && aiData.content) {
-            content = aiData.content
-          }
-          if (content && typeof content === 'string') {
-            this.predictResult = content.trim()
-            
-            // 尝试解析JSON格式的图表数据
-            try {
-              // 查找JSON格式的数据
-              const jsonMatch = content.match(/\{[\s\S]*\}/)
-              if (jsonMatch) {
-                const parsedData = JSON.parse(jsonMatch[0])
-                if (parsedData.chartData && parsedData.analysis) {
-                  this.chartData = parsedData.chartData
-                  this.predictResult = parsedData.analysis
-                  this.showChart = true
-                }
-              }
-            } catch (jsonError) {
-              console.log('JSON解析失败，显示文本结果：', jsonError)
-            }
-            
-            // 打字机效果
-            this.displayedResult = ''
-            let i = 0
-            const fullText = this.predictResult
-            const typeWriter = () => {
-              if (i <= fullText.length) {
-                this.displayedResult = fullText.slice(0, i)
-                i++
-                setTimeout(typeWriter, 18)
-              }
-            }
-            typeWriter()
-            
-            // 保存历史记录
-            this.saveHistoryRecord(simpleProducts)
-          } else {
-            this.predictError = 'AI未返回有效结果'
-          }
-        } else {
-          this.predictError = 'AI未返回有效结果'
+        
+        if (!response.ok) {
+          throw new Error('AI接口请求失败')
         }
+        
+                  // 流式读取响应
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+          let completeText = ''
+          let chartDataProcessed = false
+          
+          while (true) {
+            const { done, value } = await reader.read()
+            
+            if (done) {
+              break
+            }
+            
+            // 解码数据块
+            const chunk = decoder.decode(value, { stream: true })
+            buffer += chunk
+            completeText += chunk
+            
+            // 检查是否包含结束标记
+            if (chunk.includes('[STREAM_END]')) {
+              break
+            }
+            
+            // 检查是否包含错误信息
+            if (chunk.startsWith('error:')) {
+              this.predictError = chunk.substring(6)
+              return
+            }
+            
+            // 检查是否包含完整的图表数据
+            if (!chartDataProcessed && buffer.includes('[CHART_DATA_START]') && buffer.includes('[CHART_DATA_END]')) {
+              const chartStart = buffer.indexOf('[CHART_DATA_START]')
+              const chartEnd = buffer.indexOf('[CHART_DATA_END]') + '[CHART_DATA_END]'.length
+              
+              // 提取并解析图表数据
+              const chartJson = buffer.substring(chartStart + '[CHART_DATA_START]'.length, chartEnd - '[CHART_DATA_END]'.length)
+              console.log('提取的图表JSON:', chartJson) // 调试信息
+              try {
+                const chartData = JSON.parse(chartJson.trim())
+                console.log('解析的图表数据:', chartData) // 调试信息
+                if (chartData.chartData) {
+                  this.chartData = chartData.chartData
+                  this.showChart = true
+                  chartDataProcessed = true
+                  console.log('图表数据设置成功:', this.chartData) // 调试信息
+                } else if (chartData.xAxis && chartData.series) {
+                  // 直接是图表数据格式
+                  this.chartData = chartData
+                  this.showChart = true
+                  chartDataProcessed = true
+                  console.log('直接图表数据设置成功:', this.chartData) // 调试信息
+                }
+              } catch (e) {
+                console.log('图表数据解析失败:', e, '原始数据:', chartJson)
+              }
+            }
+            
+            // 实时更新显示内容（只显示纯文本，过滤掉JSON标记）
+            let displayText = buffer.replace(/\[CHART_DATA_START\][\s\S]*?\[CHART_DATA_END\]/g, '').replace(/\[STREAM_END\]/g, '').trim()
+            this.displayedResult = displayText
+            
+            // 添加短暂延迟以提供更好的视觉体验
+            await new Promise(resolve => setTimeout(resolve, 10))
+          }
+        
+        // 最终处理完整文本
+        this.predictResult = completeText.replace(/\[CHART_DATA_START\][\s\S]*?\[CHART_DATA_END\]/g, '').replace(/\[STREAM_END\]/g, '').trim()
+        this.displayedResult = this.predictResult
+        
+        // 保存历史记录
+        this.saveHistoryRecord(simpleProducts)
+        
       } catch (e) {
-        console.error(e) // 调试
+        console.error('流式处理错误:', e)
         this.predictError = '预测失败: ' + (e.message || e)
       } finally {
         this.predicting = false
