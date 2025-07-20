@@ -630,18 +630,21 @@ ${this.predictPrompt ? '用户特殊要求：' + this.predictPrompt + '\n\n' : '
     "series": [
       {
         "name": "商品A销量",
-        "data": [120, 150, 180, 160, 200, 220, 250, 280, 300]
+        "data": [120, 150, 1800, 1600, 2000, 2200, 2500, 2800, 3000]
       },
       {
         "name": "商品B销量", 
-        "data": [80, 90, 100, 95, 110, 125, 140, 155, 170]
+        "data": [800, 900, 1000, 950, 1100, 1250, 1400, 1550, 1700]
       }
     ]
   }
 }
 [CHART_DATA_END]
 
-注意：图表数据必须包含真实的数字，不要使用"历史销量1"这样的占位符。`
+⚠️ 重要注意事项：
+- 图表数据必须包含真实的数字，不要使用"历史销量1"这样的占位符
+- 数字格式要求：使用纯数字，不要加千位分隔符逗号（例如：写成1234，不要写成1,234）
+- JSON格式必须严格正确，所有数字都是纯数字格式`
         
         // 使用fetch进行流式请求
         const response = await fetch('/api/database/ai/sales-forecast', {
@@ -697,8 +700,20 @@ ${this.predictPrompt ? '用户特殊要求：' + this.predictPrompt + '\n\n' : '
               // 提取并解析图表数据
               const chartJson = buffer.substring(chartStart + '[CHART_DATA_START]'.length, chartEnd - '[CHART_DATA_END]'.length)
               console.log('提取的图表JSON:', chartJson) // 调试信息
+              
               try {
-                const chartData = JSON.parse(chartJson.trim())
+                // 清理数字中的千位分隔符逗号，避免JSON解析错误
+                // 例如：[1,234, 5,678] -> [1234, 5678]
+                let cleanedJson = chartJson.trim()
+                // 使用正则表达式匹配并替换数字中的逗号
+                cleanedJson = cleanedJson.replace(/(\d+),(\d{3})/g, '$1$2')
+                // 可能有多个逗号的情况，如1,234,567，需要多次替换
+                while (cleanedJson.match(/(\d+),(\d{3})/)) {
+                  cleanedJson = cleanedJson.replace(/(\d+),(\d{3})/g, '$1$2')
+                }
+                console.log('清理后的图表JSON:', cleanedJson) // 调试信息
+                
+                const chartData = JSON.parse(cleanedJson)
                 console.log('解析的图表数据:', chartData) // 调试信息
                 if (chartData.chartData) {
                   this.chartData = chartData.chartData
