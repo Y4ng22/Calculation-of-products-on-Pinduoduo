@@ -165,13 +165,28 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
             try {
                 String descSql = "DESCRIBE " + tableName;
                 List<Map<String, Object>> columns = jdbcTemplate.queryForList(descSql);
-                tableInfo.put("columns", columns);
-                tableInfo.put("columnCount", columns.size());
+                
+                // 确保所有列信息都是基本类型，避免序列化问题
+                List<Map<String, Object>> serializedColumns = new ArrayList<>();
+                for (Map<String, Object> column : columns) {
+                    Map<String, Object> columnInfo = new HashMap<>();
+                    for (Map.Entry<String, Object> entry : column.entrySet()) {
+                        Object value = entry.getValue();
+                        // 将所有值转换为字符串，确保JSON序列化兼容
+                        columnInfo.put(entry.getKey(), value != null ? value.toString() : null);
+                    }
+                    serializedColumns.add(columnInfo);
+                }
+                
+                tableInfo.put("columns", serializedColumns);
+                tableInfo.put("columnCount", serializedColumns.size());
                 
                 // 获取记录数
                 String countSql = "SELECT COUNT(*) as count FROM " + tableName;
                 Map<String, Object> countResult = jdbcTemplate.queryForMap(countSql);
-                tableInfo.put("recordCount", countResult.get("count"));
+                Object countValue = countResult.get("count");
+                // 确保记录数是Long类型，避免序列化问题
+                tableInfo.put("recordCount", countValue != null ? ((Number) countValue).longValue() : 0L);
                 
             } catch (Exception e) {
                 tableInfo.put("error", "获取表详情失败: " + e.getMessage());
@@ -203,10 +218,36 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
             // 执行查询
             List<Map<String, Object>> data = jdbcTemplate.queryForList(sql);
             
+            // 确保所有数据都是JSON可序列化的基本类型
+            List<Map<String, Object>> serializedData = new ArrayList<>();
+            for (Map<String, Object> row : data) {
+                Map<String, Object> serializedRow = new HashMap<>();
+                for (Map.Entry<String, Object> entry : row.entrySet()) {
+                    Object value = entry.getValue();
+                    // 处理特殊的数据类型，确保JSON序列化兼容
+                    if (value instanceof java.sql.Timestamp) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Date) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Time) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDateTime) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDate) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalTime) {
+                        serializedRow.put(entry.getKey(), value.toString());
+                    } else {
+                        serializedRow.put(entry.getKey(), value);
+                    }
+                }
+                serializedData.add(serializedRow);
+            }
+            
             // 获取总记录数
             long total = getTableCount(tableName);
             
-            result.put("data", data);
+            result.put("data", serializedData);
             result.put("total", total);
             result.put("page", page);
             result.put("size", size);
@@ -307,10 +348,31 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
                 String selectSql = "SELECT * FROM " + tableName + " WHERE id = LAST_INSERT_ID()";
                 Map<String, Object> insertedRecord = jdbcTemplate.queryForMap(selectSql);
                 
+                // 确保插入的记录数据是JSON可序列化的
+                Map<String, Object> serializedRecord = new HashMap<>();
+                for (Map.Entry<String, Object> entry : insertedRecord.entrySet()) {
+                    Object value = entry.getValue();
+                    if (value instanceof java.sql.Timestamp) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Date) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Time) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDateTime) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDate) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalTime) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else {
+                        serializedRecord.put(entry.getKey(), value);
+                    }
+                }
+                
                 result.put("success", true);
                 result.put("message", "记录新增成功");
                 result.put("affectedRows", affectedRows);
-                result.put("data", insertedRecord);
+                result.put("data", serializedRecord);
             } else {
                 result.put("success", false);
                 result.put("message", "新增记录失败");
@@ -364,10 +426,31 @@ public class TransactionRecordServiceImpl implements TransactionRecordService {
                 String selectSql = "SELECT * FROM " + tableName + " WHERE id = ?";
                 Map<String, Object> updatedRecord = jdbcTemplate.queryForMap(selectSql, id);
                 
+                // 确保更新的记录数据是JSON可序列化的
+                Map<String, Object> serializedRecord = new HashMap<>();
+                for (Map.Entry<String, Object> entry : updatedRecord.entrySet()) {
+                    Object value = entry.getValue();
+                    if (value instanceof java.sql.Timestamp) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Date) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.sql.Time) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDateTime) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalDate) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else if (value instanceof java.time.LocalTime) {
+                        serializedRecord.put(entry.getKey(), value.toString());
+                    } else {
+                        serializedRecord.put(entry.getKey(), value);
+                    }
+                }
+                
                 result.put("success", true);
                 result.put("message", "记录更新成功");
                 result.put("affectedRows", affectedRows);
-                result.put("data", updatedRecord);
+                result.put("data", serializedRecord);
             } else {
                 result.put("success", false);
                 result.put("message", "更新记录失败，可能记录不存在");

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.pdd.repository.MetricHistoryRepository">
+    
+    <!-- 结果映射 -->
+    <resultMap id="MetricHistoryResultMap" type="com.pdd.model.MetricHistory">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="metric_id" property="metricId" jdbcType="BIGINT"/>
+        <result column="execute_time" property="executeTime" jdbcType="TIMESTAMP"/>
+        <result column="result" property="result" jdbcType="VARCHAR"/>
+        <result column="data" property="data" jdbcType="LONGVARCHAR"/>
+        <result column="error_message" property="errorMessage" jdbcType="LONGVARCHAR"/>
+        <result column="execution_duration" property="executionDuration" jdbcType="INTEGER"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 插入历史记录 -->
+    <insert id="insert" parameterType="com.pdd.model.MetricHistory" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO metric_history (
+            metric_id, execute_time, result, data, error_message, execution_duration, created_at
+        ) VALUES (
+            #{metricId}, #{executeTime}, #{result}, #{data}, #{errorMessage}, #{executionDuration}, #{createdAt}
+        )
+    </insert>
+
+    <!-- 根据ID查询 -->
+    <select id="findById" parameterType="java.lang.Long" resultMap="MetricHistoryResultMap">
+        SELECT * FROM metric_history WHERE id = #{id}
+    </select>
+
+    <!-- 根据指标ID分页查询历史记录 -->
+    <select id="findByMetricId" resultMap="MetricHistoryResultMap">
+        SELECT * FROM metric_history 
+        WHERE metric_id = #{metricId}
+        ORDER BY execute_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 根据指标ID统计历史记录总数 -->
+    <select id="countByMetricId" parameterType="java.lang.Long" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM metric_history WHERE metric_id = #{metricId}
+    </select>
+
+    <!-- 获取指标最近的历史记录 -->
+    <select id="findLatestByMetricId" parameterType="java.lang.Long" resultMap="MetricHistoryResultMap">
+        SELECT * FROM metric_history 
+        WHERE metric_id = #{metricId}
+        ORDER BY execute_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 删除指标的所有历史记录 -->
+    <delete id="deleteByMetricId" parameterType="java.lang.Long">
+        DELETE FROM metric_history WHERE metric_id = #{metricId}
+    </delete>
+
+    <!-- 根据ID删除历史记录 -->
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM metric_history WHERE id = #{id}
+    </delete>
+
+</mapper> 

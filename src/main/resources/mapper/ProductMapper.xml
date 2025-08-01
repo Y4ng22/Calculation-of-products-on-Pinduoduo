@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pdd.repository.ProductRepository">
+
+    <!-- 结果映射 -->
+    <resultMap id="ProductResultMap" type="com.pdd.model.Product">
+        <id property="id" column="id"/>
+        <result property="goodId" column="good_id"/>
+        <result property="name" column="name"/>
+        <result property="cost" column="cost"/>
+        <result property="price" column="price"/>
+        <result property="sales" column="sales"/>
+        <result property="category" column="category"/>
+        <result property="state" column="state"/>
+        <result property="image" column="image"/>
+        <result property="description" column="description"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 插入或更新商品 -->
+    <insert id="insertOrUpdate" parameterType="com.pdd.model.Product">
+        INSERT INTO products (
+            good_id, name, cost, price, sales, category, state, image, description, created_at, updated_at
+        ) VALUES (
+            #{goodId}, #{name}, #{cost}, #{price}, #{sales}, #{category}, #{state}, #{image}, #{description}, NOW(), NOW()
+        ) ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            cost = VALUES(cost),
+            price = VALUES(price),
+            sales = VALUES(sales),
+            category = VALUES(category),
+            state = VALUES(state),
+            image = VALUES(image),
+            description = VALUES(description),
+            updated_at = NOW()
+    </insert>
+
+    <!-- 批量插入商品 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO products (
+            good_id, name, cost, price, sales, category, state, image, description, created_at, updated_at
+        ) VALUES
+        <foreach collection="products" item="product" separator=",">
+            (#{product.goodId}, #{product.name}, #{product.cost}, #{product.price}, #{product.sales}, 
+             #{product.category}, #{product.state}, #{product.image}, #{product.description}, NOW(), NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            cost = VALUES(cost),
+            price = VALUES(price),
+            sales = VALUES(sales),
+            category = VALUES(category),
+            state = VALUES(state),
+            image = VALUES(image),
+            description = VALUES(description),
+            updated_at = NOW()
+    </insert>
+
+    <!-- 根据goodId查询商品 -->
+    <select id="findByGoodId" resultMap="ProductResultMap">
+        SELECT * FROM products WHERE good_id = #{goodId}
+    </select>
+
+    <!-- 查询所有商品 -->
+    <select id="findAll" resultMap="ProductResultMap">
+        SELECT * FROM products ORDER BY created_at DESC
+    </select>
+
+    <!-- 分页查询商品 -->
+    <select id="findByPage" resultMap="ProductResultMap">
+        SELECT * FROM products 
+        ORDER BY created_at DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取商品总数 -->
+    <select id="getTotalCount" resultType="int">
+        SELECT COUNT(*) FROM products
+    </select>
+
+    <!-- 根据分类查询商品 -->
+    <select id="findByCategory" resultMap="ProductResultMap">
+        SELECT * FROM products WHERE category = #{category} ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据状态查询商品 -->
+    <select id="findByState" resultMap="ProductResultMap">
+        SELECT * FROM products WHERE state = #{state} ORDER BY created_at DESC
+    </select>
+
+    <!-- 删除商品 -->
+    <delete id="deleteByGoodId">
+        DELETE FROM products WHERE good_id = #{goodId}
+    </delete>
+
+    <!-- 清空表 -->
+    <delete id="truncateTable">
+        TRUNCATE TABLE products
+    </delete>
+
+</mapper> 

@@ -351,6 +351,7 @@ export default {
         total: 0
       },
       selectedProductIds: [], // 页面初始为空
+      isUpdatingSelection: false, // 新增：标记是否正在更新选择状态
       predictPrompt: '', // 用户输入的提示词
       defaultPrompt: '请根据以下商品的历史销量数据，进行深入的销量预测分析。要求：1. 详细分析每个商品的历史销量趋势和变化规律，说明变化幅度和速度；2. 深入识别影响销量的关键因素（季节性、价格策略、市场竞争、消费者偏好、营销活动等）；3. 基于数据趋势和影响因素，预测未来3个月的销量；4. 详细说明预测依据、分析方法和预测逻辑；5. 提供风险评估和不确定性分析；6. 给出具体的优化建议和业务指导。请确保分析全面、详细、有理有据，字数在500字左右。', // 预设的提示词
       predicting: false, // 新增，防止未定义警告
@@ -481,6 +482,8 @@ export default {
   methods: {
     async fetchProducts() {
       this.loading = true
+      this.isUpdatingSelection = true // 在数据加载期间防止选择事件干扰
+      
       try {
         const res = await axios.get('/api/database/records', {
           params: {
@@ -503,7 +506,7 @@ export default {
         this.pagination.total = 0
       } finally {
         this.loading = false
-        this.syncSelection()
+        this.syncSelection() // syncSelection 内部会重置 isUpdatingSelection
       }
     },
     
@@ -552,6 +555,10 @@ export default {
     syncSelection() {
       this.$nextTick(() => {
         if (!this.$refs.productTable) return
+        
+        // 设置标记，防止在同步过程中触发 handleSelectionChange
+        this.isUpdatingSelection = true
+        
         // 先清空所有 selection
         this.$refs.productTable.clearSelection()
         // 再勾选 selectedProductIds 里的
@@ -560,9 +567,19 @@ export default {
             this.$refs.productTable.toggleRowSelection(row, true)
           }
         })
+        
+        // 同步完成后，重置标记
+        this.$nextTick(() => {
+          this.isUpdatingSelection = false
+        })
       })
     },
     handleSelectionChange(selection) {
+      // 如果正在更新选择状态，忽略此事件，避免干扰同步过程
+      if (this.isUpdatingSelection) {
+        return
+      }
+      
       // 先移除当前页所有商品的 id
       const currentPageIds = this.products.map(item => item.id)
       this.selectedProductIds = this.selectedProductIds.filter(id => !currentPageIds.includes(id))

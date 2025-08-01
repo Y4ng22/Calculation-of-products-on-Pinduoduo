@@ -347,7 +347,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; 2025 surf yangxinzhuo/modawei.</p>
+          <p>&copy; 2025 surf yangxinzhuo.</p>
         </div>
       </div>
     </div>

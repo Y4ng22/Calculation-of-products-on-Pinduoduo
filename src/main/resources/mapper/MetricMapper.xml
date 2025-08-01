@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pdd.repository.MetricRepository">
+
+    <!-- 结果映射 -->
+    <resultMap id="MetricResultMap" type="com.pdd.model.Metric">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="type" column="type"/>
+        <result property="schedule" column="schedule_config"/>
+        <result property="description" column="description"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="lastRun" column="last_run"/>
+        <result property="lastResult" column="last_result"/>
+        <result property="lastError" column="last_error"/>
+        <result property="apiUrl" column="api_url"/>
+        <result property="clientId" column="client_id"/>
+        <result property="clientSecret" column="client_secret"/>
+        <result property="accessToken" column="access_token"/>
+        <result property="targetDbHost" column="target_db_host"/>
+        <result property="targetDbName" column="target_db_name"/>
+        <result property="targetTableName" column="target_table_name"/>
+        <result property="sourceDbHost" column="source_db_host"/>
+        <result property="sourceDbName" column="source_db_name"/>
+        <result property="sourceTableName" column="source_table_name"/>
+        <result property="fieldName" column="field_name"/>
+        <result property="aggregateMethod" column="aggregate_method"/>
+        <result property="customSql" column="custom_sql"/>
+        <result property="enableProfitAlert" column="enable_profit_alert"/>
+        <result property="profitThreshold" column="profit_threshold"/>
+    </resultMap>
+
+    <!-- 查询总数 -->
+    <select id="getTotalCount" resultType="int">
+        SELECT COUNT(*) FROM metrics
+    </select>
+
+    <!-- 分页查询 -->
+    <select id="findByPage" resultMap="MetricResultMap">
+        SELECT * FROM metrics 
+        ORDER BY created_at DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="findById" resultMap="MetricResultMap">
+        SELECT * FROM metrics WHERE id = #{id}
+    </select>
+
+    <!-- 插入 -->
+    <insert id="insert" parameterType="com.pdd.model.Metric" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO metrics (
+            name, type, schedule_config, description, enabled, created_at, updated_at, 
+            last_result, api_url, client_id, client_secret, access_token, 
+            target_db_host, target_db_name, target_table_name, 
+            source_db_host, source_db_name, source_table_name, field_name, 
+            aggregate_method, custom_sql, enable_profit_alert, profit_threshold
+        ) VALUES (
+            #{name}, #{type}, #{schedule}, #{description}, #{enabled}, #{createdAt}, #{updatedAt}, 
+            #{lastResult}, #{apiUrl}, #{clientId}, #{clientSecret}, #{accessToken}, 
+            #{targetDbHost}, #{targetDbName}, #{targetTableName}, 
+            #{sourceDbHost}, #{sourceDbName}, #{sourceTableName}, #{fieldName}, 
+            #{aggregateMethod}, #{customSql}, #{enableProfitAlert}, #{profitThreshold}
+        )
+    </insert>
+
+    <!-- 更新 -->
+    <update id="update" parameterType="com.pdd.model.Metric">
+        UPDATE metrics SET 
+            name=#{name}, type=#{type}, schedule_config=#{schedule}, 
+            description=#{description}, enabled=#{enabled}, updated_at=#{updatedAt}, 
+            last_run=#{lastRun}, last_result=#{lastResult}, last_error=#{lastError}, 
+            api_url=#{apiUrl}, client_id=#{clientId}, client_secret=#{clientSecret}, 
+            access_token=#{accessToken}, target_db_host=#{targetDbHost}, target_db_name=#{targetDbName}, 
+            target_table_name=#{targetTableName}, source_db_host=#{sourceDbHost}, source_db_name=#{sourceDbName}, 
+            source_table_name=#{sourceTableName}, field_name=#{fieldName}, aggregate_method=#{aggregateMethod}, 
+            custom_sql=#{customSql}, enable_profit_alert=#{enableProfitAlert}, profit_threshold=#{profitThreshold} 
+        WHERE id=#{id}
+    </update>
+
+    <!-- 删除 -->
+    <delete id="deleteById">
+        DELETE FROM metrics WHERE id = #{id}
+    </delete>
+
+    <!-- 更新状态 -->
+    <update id="updateStatus">
+        UPDATE metrics SET enabled = #{enabled}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 统计查询 -->
+    <select id="countByType" resultType="int">
+        SELECT COUNT(*) FROM metrics WHERE type = #{type}
+    </select>
+
+    <select id="countByEnabled" resultType="int">
+        SELECT COUNT(*) FROM metrics WHERE enabled = #{enabled}
+    </select>
+
+    <select id="countByLastResult" resultType="int">
+        SELECT COUNT(*) FROM metrics WHERE last_result = #{result}
+    </select>
+
+    <!-- 查询启用的指标 -->
+    <select id="findEnabledMetrics" resultMap="MetricResultMap">
+        SELECT * FROM metrics WHERE enabled = 1
+    </select>
+
+</mapper> 
