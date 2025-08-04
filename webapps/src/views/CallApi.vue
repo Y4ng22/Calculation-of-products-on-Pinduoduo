@@ -136,7 +136,16 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column prop="scheduleStatus" label="调度状态" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.scheduled" type="success" size="small">
+              <el-icon><Timer /></el-icon>
+              调度中
+            </el-tag>
+            <el-tag v-else type="info" size="small">未调度</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="360" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="viewMetricDetail(row)">详情</el-button>
             <el-button size="small" @click="editMetric(row)">编辑</el-button>
@@ -147,6 +156,15 @@
               :loading="row.runLoading"
             >
               运行
+            </el-button>
+            <el-button 
+              v-if="row.scheduled"
+              size="small" 
+              type="warning" 
+              @click="stopSchedule(row)"
+              :loading="row.scheduleLoading"
+            >
+              停止调度
             </el-button>
             <el-button 
               size="small" 
@@ -339,6 +357,16 @@
           <el-descriptions-item label="最后运行">
             {{ selectedMetric.lastRun ? formatTime(selectedMetric.lastRun) : '未运行' }}
           </el-descriptions-item>
+          <el-descriptions-item label="调度状态">
+            <el-tag v-if="selectedMetric.scheduled" type="success" size="small">
+              <el-icon><Timer /></el-icon>
+              调度中
+            </el-tag>
+            <el-tag v-else type="info" size="small">未调度</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="selectedMetric.scheduleInfo?.nextExecutionTime" label="下次执行">
+            {{ formatTime(selectedMetric.scheduleInfo.nextExecutionTime) }}
+          </el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">{{ selectedMetric.description || '-' }}</el-descriptions-item>
         </el-descriptions>
 
@@ -513,6 +541,22 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="handleCloseDetailDialog">关闭</el-button>
+          <el-button 
+            v-if="!selectedMetric?.scheduled" 
+            type="success" 
+            @click="startScheduleFromDetail"
+            :loading="selectedMetric?.scheduleLoading"
+          >
+            启动调度
+          </el-button>
+          <el-button 
+            v-if="selectedMetric?.scheduled" 
+            type="warning" 
+            @click="stopScheduleFromDetail"
+            :loading="selectedMetric?.scheduleLoading"
+          >
+            停止调度
+          </el-button>
           <el-button type="primary" @click="editMetric(selectedMetric)">编辑</el-button>
         </span>
       </template>
@@ -523,7 +567,7 @@
 <script>
 import { 
   Plus, Connection, Coin, Check, Warning, DocumentCopy, 
-  Search, Picture, Delete, Loading 
+  Search, Picture, Delete, Loading, Timer 
 } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -532,7 +576,7 @@ export default {
   name: 'MetricsCenter',
   components: { 
     Plus, Connection, Coin, Check, Warning, DocumentCopy, 
-    Search, Picture, Delete, Loading 
+    Search, Picture, Delete, Loading, Timer 
   },
   data() {
     return {
@@ -665,8 +709,15 @@ export default {
         })
         
         if (response.data.code === 1) {
-          this.metrics = response.data.data.records || []
+          this.metrics = (response.data.data.records || []).map(metric => ({
+            ...metric,
+            scheduled: false, // 初始化调度状态
+            scheduleLoading: false // 初始化调度loading状态
+          }))
           this.pagination.total = response.data.data.total || 0
+          
+          // 异步获取每个指标的调度状态
+          this.fetchScheduleStatuses()
         } else {
           this.metrics = []
           this.pagination.total = 0
@@ -679,6 +730,26 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    
+    async fetchScheduleStatuses() {
+      // 为每个指标异步获取调度状态
+      const statusPromises = this.metrics.map(async (metric) => {
+        try {
+          const response = await axios.get(`/api/metrics/${metric.id}/schedule/status`)
+          if (response.data.code === 1) {
+            metric.scheduled = response.data.data.scheduled || false
+            // 可以添加更多调度相关信息，如下次执行时间等
+            metric.scheduleInfo = response.data.data
+          }
+        } catch (error) {
+          console.warn(`获取指标${metric.id}调度状态失败:`, error)
+          metric.scheduled = false
+        }
+      })
+      
+      // 等待所有状态查询完成
+      await Promise.allSettled(statusPromises)
     },
     
     showAddMetricDialog() {
@@ -694,9 +765,21 @@ export default {
       this.detailDialogVisible = false
     },
     
-    viewMetricDetail(metric) {
+    async viewMetricDetail(metric) {
       this.selectedMetric = metric
       this.detailDialogVisible = true
+      
+      // 获取最新的调度状态
+      try {
+        const response = await axios.get(`/api/metrics/${metric.id}/schedule/status`)
+        if (response.data.code === 1) {
+          this.selectedMetric.scheduled = response.data.data.scheduled || false
+          this.selectedMetric.scheduleInfo = response.data.data
+        }
+      } catch (error) {
+        console.warn('获取调度状态失败:', error)
+      }
+      
       // 加载历史记录
       this.loadMetricHistory()
     },
@@ -755,13 +838,17 @@ export default {
         const response = await axios.post(`/api/metrics/${metric.id}/run`)
         
         if (response.data.code === 1) {
-          ElMessage.success('指标运行成功')
+          ElMessage.success('指标运行成功，调度任务已启动')
+          
+          // 更新调度状态
+          metric.scheduled = response.data.data?.scheduleStarted || false
           
           // 如果当前正在查看这个指标的详情，更新执行结果数据
           if (this.selectedMetric && this.selectedMetric.id === metric.id) {
             this.selectedMetric.lastExecutionResult = response.data.data || {}
             this.selectedMetric.lastRun = new Date().toISOString()
             this.selectedMetric.lastResult = 'success'
+            this.selectedMetric.scheduled = metric.scheduled
           }
           
           this.fetchMetrics() // 刷新列表获取最新状态
@@ -773,6 +860,88 @@ export default {
         ElMessage.error('运行指标失败')
       } finally {
         metric.runLoading = false
+      }
+    },
+    
+    async stopSchedule(metric) {
+      metric.scheduleLoading = true
+      try {
+        const response = await axios.post(`/api/metrics/${metric.id}/schedule/stop`)
+        
+        if (response.data.code === 1) {
+          ElMessage.success('调度任务已停止')
+          metric.scheduled = false
+          
+          // 如果当前正在查看这个指标的详情，更新调度状态
+          if (this.selectedMetric && this.selectedMetric.id === metric.id) {
+            this.selectedMetric.scheduled = false
+          }
+        } else {
+          ElMessage.error(response.data.message || '停止调度失败')
+        }
+      } catch (error) {
+        console.error('停止调度失败:', error)
+        ElMessage.error('停止调度失败')
+      } finally {
+        metric.scheduleLoading = false
+      }
+    },
+    
+    async startScheduleFromDetail() {
+      if (!this.selectedMetric) return
+      
+      this.selectedMetric.scheduleLoading = true
+      try {
+        const response = await axios.post(`/api/metrics/${this.selectedMetric.id}/schedule/start`)
+        
+        if (response.data.code === 1) {
+          ElMessage.success('调度任务已启动')
+          this.selectedMetric.scheduled = true
+          this.selectedMetric.scheduleInfo = response.data.data
+          
+          // 更新列表中的对应项
+          const listItem = this.metrics.find(m => m.id === this.selectedMetric.id)
+          if (listItem) {
+            listItem.scheduled = true
+            listItem.scheduleInfo = response.data.data
+          }
+        } else {
+          ElMessage.error(response.data.message || '启动调度失败')
+        }
+      } catch (error) {
+        console.error('启动调度失败:', error)
+        ElMessage.error('启动调度失败')
+      } finally {
+        this.selectedMetric.scheduleLoading = false
+      }
+    },
+    
+    async stopScheduleFromDetail() {
+      if (!this.selectedMetric) return
+      
+      this.selectedMetric.scheduleLoading = true
+      try {
+        const response = await axios.post(`/api/metrics/${this.selectedMetric.id}/schedule/stop`)
+        
+        if (response.data.code === 1) {
+          ElMessage.success('调度任务已停止')
+          this.selectedMetric.scheduled = false
+          this.selectedMetric.scheduleInfo = null
+          
+          // 更新列表中的对应项
+          const listItem = this.metrics.find(m => m.id === this.selectedMetric.id)
+          if (listItem) {
+            listItem.scheduled = false
+            listItem.scheduleInfo = null
+          }
+        } else {
+          ElMessage.error(response.data.message || '停止调度失败')
+        }
+      } catch (error) {
+        console.error('停止调度失败:', error)
+        ElMessage.error('停止调度失败')
+      } finally {
+        this.selectedMetric.scheduleLoading = false
       }
     },
     

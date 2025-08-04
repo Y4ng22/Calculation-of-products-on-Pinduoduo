@@ -168,7 +168,7 @@ public class MetricsController {
     }
 
     /**
-     * 立即运行指标
+     * 立即运行指标并启动调度任务
      */
     @PostMapping("/{id}/run")
     public Result runMetricNow(@PathVariable Long id) {
@@ -185,18 +185,93 @@ public class MetricsController {
             System.out.println("找到指标: " + existingMetric.getName());
             System.out.println("指标类型: " + existingMetric.getType());
 
-            // 异步执行指标任务
+            // 立即执行指标任务
             Map<String, Object> result = metricService.executeMetric(existingMetric);
             
+            // 启动调度任务
+            metricService.startMetricSchedule(id);
+            
             System.out.println("指标执行完成，结果: " + result);
+            System.out.println("调度任务已启动");
             System.out.println("=== 指标运行结束 ===");
             
-            return Result.success(result);
+            // 返回结果中包含调度状态
+            Map<String, Object> responseData = new HashMap<>(result);
+            responseData.put("scheduleStarted", true);
+            responseData.put("scheduleStatus", metricService.getScheduleStatus(id));
+            
+            return Result.success(responseData);
         } catch (Exception e) {
             System.err.println("=== 指标运行失败 ===");
             System.err.println("错误消息: " + e.getMessage());
             e.printStackTrace();
             return Result.error("运行指标失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 启动指标调度任务
+     */
+    @PostMapping("/{id}/schedule/start")
+    public Result startMetricSchedule(@PathVariable Long id) {
+        try {
+            Metric existingMetric = metricService.getMetricById(id);
+            if (existingMetric == null) {
+                return Result.error("指标不存在");
+            }
+            
+            if (!existingMetric.getEnabled()) {
+                return Result.error("指标已禁用，无法启动调度");
+            }
+            
+            metricService.startMetricSchedule(id);
+            Map<String, Object> scheduleStatus = metricService.getScheduleStatus(id);
+            
+            return Result.success(scheduleStatus);
+        } catch (Exception e) {
+            return Result.error("启动调度失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 停止指标调度任务
+     */
+    @PostMapping("/{id}/schedule/stop")
+    public Result stopMetricSchedule(@PathVariable Long id) {
+        try {
+            Metric existingMetric = metricService.getMetricById(id);
+            if (existingMetric == null) {
+                return Result.error("指标不存在");
+            }
+            
+            metricService.stopMetricSchedule(id);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("metricId", id);
+            result.put("scheduled", false);
+            result.put("message", "调度任务已停止");
+            
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error("停止调度失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取指标调度状态
+     */
+    @GetMapping("/{id}/schedule/status")
+    public Result getMetricScheduleStatus(@PathVariable Long id) {
+        try {
+            Metric existingMetric = metricService.getMetricById(id);
+            if (existingMetric == null) {
+                return Result.error("指标不存在");
+            }
+            
+            Map<String, Object> scheduleStatus = metricService.getScheduleStatus(id);
+            return Result.success(scheduleStatus);
+        } catch (Exception e) {
+            return Result.error("获取调度状态失败: " + e.getMessage());
         }
     }
 

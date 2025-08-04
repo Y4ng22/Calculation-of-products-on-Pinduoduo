@@ -75,4 +75,24 @@ public interface MetricService {
      * 测试历史记录表
      */
     Map<String, Object> testHistoryTable();
+    
+    /**
+     * 启动指标调度任务
+     */
+    void startMetricSchedule(Long metricId);
+    
+    /**
+     * 停止指标调度任务
+     */
+    void stopMetricSchedule(Long metricId);
+    
+    /**
+     * 检查指标是否正在调度中
+     */
+    boolean isMetricScheduled(Long metricId);
+    
+    /**
+     * 获取调度状态信息
+     */
+    Map<String, Object> getScheduleStatus(Long metricId);
 } 

@@ -7,6 +7,7 @@ import com.pdd.repository.MetricRepository;
 import com.pdd.repository.MetricHistoryRepository;
 import com.pdd.repository.ProductRepository;
 import com.pdd.service.MetricService;
+import com.pdd.service.ScheduleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,9 @@ public class MetricServiceImpl implements MetricService {
     
     @Autowired
     private MetricHistoryRepository metricHistoryRepository;
+    
+    @Autowired
+    private ScheduleService scheduleService;
     
     @Autowired
     private ProductRepository productRepository;
@@ -805,5 +809,124 @@ public class MetricServiceImpl implements MetricService {
         }
         
         return result;
+    }
+    
+    @Override
+    public void startMetricSchedule(Long metricId) {
+        if (metricId == null) {
+            throw new IllegalArgumentException("指标ID不能为空");
+        }
+        
+        Metric metric = getMetricById(metricId);
+        if (metric == null) {
+            throw new IllegalArgumentException("指标不存在: " + metricId);
+        }
+        
+        if (!metric.getEnabled()) {
+            throw new IllegalStateException("指标已禁用，无法启动调度: " + metric.getName());
+        }
+        
+        if (metric.getSchedule() == null || metric.getSchedule().trim().isEmpty()) {
+            throw new IllegalStateException("指标未配置调度周期: " + metric.getName());
+        }
+        
+        try {
+            scheduleService.startScheduledTask(metric);
+            System.out.println("成功启动指标调度: " + metric.getName() + ", 周期: " + metric.getSchedule());
+        } catch (Exception e) {
+            System.err.println("启动指标调度失败: " + e.getMessage());
+            throw new RuntimeException("启动调度失败: " + e.getMessage(), e);
+        }
+    }
+    
+    @Override
+    public void stopMetricSchedule(Long metricId) {
+        if (metricId == null) {
+            throw new IllegalArgumentException("指标ID不能为空");
+        }
+        
+        try {
+            scheduleService.stopScheduledTask(metricId);
+            System.out.println("成功停止指标调度: " + metricId);
+        } catch (Exception e) {
+            System.err.println("停止指标调度失败: " + e.getMessage());
+            throw new RuntimeException("停止调度失败: " + e.getMessage(), e);
+        }
+    }
+    
+    @Override
+    public boolean isMetricScheduled(Long metricId) {
+        if (metricId == null) {
+            return false;
+        }
+        
+        return scheduleService.isScheduled(metricId);
+    }
+    
+    @Override
+    public Map<String, Object> getScheduleStatus(Long metricId) {
+        Map<String, Object> status = new HashMap<>();
+        
+        if (metricId == null) {
+            status.put("error", "指标ID不能为空");
+            return status;
+        }
+        
+        try {
+            Metric metric = getMetricById(metricId);
+            if (metric == null) {
+                status.put("error", "指标不存在");
+                return status;
+            }
+            
+            status.put("metricId", metricId);
+            status.put("metricName", metric.getName());
+            status.put("schedule", metric.getSchedule());
+            status.put("enabled", metric.getEnabled());
+            status.put("scheduled", scheduleService.isScheduled(metricId));
+            
+            String nextExecutionTime = scheduleService.getNextExecutionTime(metricId);
+            if (nextExecutionTime != null) {
+                status.put("nextExecutionTime", nextExecutionTime);
+            }
+            
+            // 获取所有正在调度的指标数量
+            Set<Long> activeSchedules = scheduleService.getActiveScheduledMetrics();
+            status.put("totalActiveSchedules", activeSchedules.size());
+            
+            // 添加调度周期的可读描述
+            String scheduleDescription = getScheduleDescription(metric.getSchedule());
+            status.put("scheduleDescription", scheduleDescription);
+            
+        } catch (Exception e) {
+            status.put("error", "获取调度状态失败: " + e.getMessage());
+            System.err.println("获取调度状态失败: " + e.getMessage());
+        }
+        
+        return status;
+    }
+    
+    /**
+     * 获取调度周期的可读描述
+     */
+    private String getScheduleDescription(String schedule) {
+        if (schedule == null) return "未配置";
+        
+        switch (schedule.toLowerCase()) {
+            case "5min":
+                return "每5分钟执行一次";
+            case "15min":
+                return "每15分钟执行一次";
+            case "30min":
+                return "每30分钟执行一次";
+            case "1hour":
+                return "每小时执行一次";
+            case "1day":
+                return "每天执行一次";
+            case "1week":
+                return "每周执行一次";
+            default:
+                return "自定义周期: " + schedule;
+        }
     }
 } 
