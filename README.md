@@ -35,9 +35,8 @@ Below are its core features and highlights:
 - **Scheduled Task Scheduling**: Implements timed task execution based on a thread pool scheduler (`ThreadPoolTaskScheduler`), supporting task start/stop and status monitoring.
 - **Data Processing Pipeline**: Automates the entire process from API pulling (`executeApiMetric`), data parsing to database writing (`batchInsert`).
 - **Flexible Configuration**: Enables configuring task types (API/database), scheduling intervals, alert thresholds, etc., through the `Metric` model, adapting to different business scenarios.
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/0caa2d7c-1e36-4166-be23-0709c2d53f49" alt="43f1020f3eebdc2fbf73ba301161bcbf">
-</p>
+<div style="text-align: center;">
+  <img width="604" height="848" alt="image" src="https://github.com/user-attachments/assets/9e158252-ebbd-4ad2-a6eb-272566807ff0" />
+</div>
 
 This project provides Pinduoduo merchants with a full-link solution from data collection, storage, monitoring to intelligent analysis, effectively reducing manual operation costs and improving the accuracy of business decisions.
