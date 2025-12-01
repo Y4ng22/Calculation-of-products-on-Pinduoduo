@@ -17,7 +17,7 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 - **Dynamic Profit Monitoring**: Periodically calculates the total cost, total revenue, and profit of products in the database through scheduled tasks (automatically computed based on sales volume × price/cost).
 - **Custom Threshold Alerts**: Allows setting profit thresholds (`profitThreshold`). When the monitored profit falls below the threshold, an alert mechanism is automatically triggered to promptly remind merchants of operational risks.
 
-![1593348038fb88d9f7b6f769fa93a2c9](https://github.com/user-attachments/assets/1fe2fc50-e862-4772-ba10-893e6e152d39)
+![6e43c2595ec7abf718232069eaa536c5](https://github.com/user-attachments/assets/4ec4332a-e003-4c25-b721-de0fa97d13bd)
 
 
 ### 3. AI Intelligent Prediction and Streaming Output
@@ -26,7 +26,7 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 - **Multi-dimensional Predictive Analysis**: Includes historical trend identification, influencing factor analysis (such as seasonality, price fluctuations), future sales volume prediction, and generates visualized chart data to support inventory management and marketing strategy decisions.
 
 <div style="text-align: center;">
-  <img src="https://github.com/user-attachments/assets/0caa2d7c-1e36-4166-be23-0709c2d53f49" alt="43f1020f3eebdc2fbf73ba301161bcbf">
+  <img src="https://github.com/user-attachments/assets/0573e0ea-35e6-4730-832a-17fde3b02af5" alt="c0eb0e7f33c6406d77556c6c8746d036">
 </div>
 
 
