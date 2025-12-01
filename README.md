@@ -1,4 +1,4 @@
-# Introduction to Calculation-of-products-on-Pinduoduo Project
+# Calculation-of-products-on-Pinduoduo
 
 This project is a dedicated data management and intelligent analysis tool for Pinduoduo merchants. It aims to help merchants efficiently manage order data, monitor business performance, and optimize decision-making through automated data processing and AI analysis capabilities. 
 
