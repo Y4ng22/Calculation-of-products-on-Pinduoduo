@@ -12,6 +12,8 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 - **Scheduled Order Pulling**: Supports configuring scheduled tasks (based on set intervals) to automatically pull order transactions and details from Pinduoduo APIs. No manual intervention is required, ensuring data real-time nature.
 - **Automatic Database Writing**: Pulled order data (including product ID, name, cost, price, sales volume, etc.) is automatically written into the database, forming structured data storage for subsequent analysis.
 
+![42cc7787ef0beb33b4060b24b8c14d6d](https://github.com/user-attachments/assets/c436dd75-8cbf-4412-883c-108e2ea9fa48)
+
 
 ### 2. Real-time Profit Monitoring and Threshold Alerts
 - **Dynamic Profit Monitoring**: Periodically calculates the total cost, total revenue, and profit of products in the database or from API through scheduled tasks (automatically computed based on sales volume × price/cost).
@@ -24,6 +26,8 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 - **Integration with DeepSeek Large Model**: Incorporates AI capabilities to conduct in-depth analysis and predictions based on historical sales data.
 - **Support for Streaming Output**: Real-time returns analysis results through the streaming request interface (`/api/database/ai/sales-forecast`), enhancing user experience.
 - **Multi-dimensional Predictive Analysis**: Includes historical trend identification, influencing factor analysis (such as seasonality, price fluctuations), future sales volume prediction, and generates visualized chart data to support inventory management and marketing strategy decisions.
+
+The DeepSeek model returns the predicted text information and the JSON of the chart, which is for the purpose of parsing and rendering the chart. Due to the page limitations, only the effect of the chart is displayed:
 
 <div style="text-align: center;">
   <img src="https://github.com/user-attachments/assets/0573e0ea-35e6-4730-832a-17fde3b02af5" alt="c0eb0e7f33c6406d77556c6c8746d036">
