@@ -36,6 +36,8 @@ Below are its core features and highlights:
 - **Data Processing Pipeline**: Automates the entire process from API pulling (`executeApiMetric`), data parsing to database writing (`batchInsert`).
 - **Flexible Configuration**: Enables configuring task types (API/database), scheduling intervals, alert thresholds, etc., through the `Metric` model, adapting to different business scenarios.
 
-<img width="584" height="823" alt="image" src="https://github.com/user-attachments/assets/13434fc1-f158-4bdb-a834-f7fb498ac9bf" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0caa2d7c-1e36-4166-be23-0709c2d53f49" alt="43f1020f3eebdc2fbf73ba301161bcbf">
+</p>
 
 This project provides Pinduoduo merchants with a full-link solution from data collection, storage, monitoring to intelligent analysis, effectively reducing manual operation costs and improving the accuracy of business decisions.
