@@ -4,7 +4,6 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 
 ![619b2eb6d2aa237e593ea093c5af0743](https://github.com/user-attachments/assets/2653504e-3d90-49a5-bfb5-461aa35ddc80)
 
-Below are its core features and highlights:
 
 
 ## Core Feature Highlights
