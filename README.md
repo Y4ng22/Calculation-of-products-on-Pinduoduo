@@ -14,7 +14,7 @@ This project is a dedicated data management and intelligent analysis tool for Pi
 
 
 ### 2. Real-time Profit Monitoring and Threshold Alerts
-- **Dynamic Profit Monitoring**: Periodically calculates the total cost, total revenue, and profit of products in the database through scheduled tasks (automatically computed based on sales volume × price/cost).
+- **Dynamic Profit Monitoring**: Periodically calculates the total cost, total revenue, and profit of products in the database or from API through scheduled tasks (automatically computed based on sales volume × price/cost).
 - **Custom Threshold Alerts**: Allows setting profit thresholds (`profitThreshold`). When the monitored profit falls below the threshold, an alert mechanism is automatically triggered to promptly remind merchants of operational risks.
 
 ![6e43c2595ec7abf718232069eaa536c5](https://github.com/user-attachments/assets/4ec4332a-e003-4c25-b721-de0fa97d13bd)
