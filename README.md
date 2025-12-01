@@ -26,7 +26,9 @@ Below are its core features and highlights:
 - **Support for Streaming Output**: Real-time returns analysis results through the streaming request interface (`/api/database/ai/sales-forecast`), enhancing user experience.
 - **Multi-dimensional Predictive Analysis**: Includes historical trend identification, influencing factor analysis (such as seasonality, price fluctuations), future sales volume prediction, and generates visualized chart data to support inventory management and marketing strategy decisions.
 
-![43f1020f3eebdc2fbf73ba301161bcbf](https://github.com/user-attachments/assets/0caa2d7c-1e36-4166-be23-0709c2d53f49)
+<div style="text-align: center;">
+  <img src="https://github.com/user-attachments/assets/0caa2d7c-1e36-4166-be23-0709c2d53f49" alt="43f1020f3eebdc2fbf73ba301161bcbf">
+</div>
 
 
 ## Key Technical Implementations
